@@ -497,17 +497,17 @@ class CarlaEnvironment(EnvironmentInterface):
     #     return self.target_success_rate
 
 
-env = CarlaEnvironment()
-print("number of available poses are : ",env.num_positions)
-for i in range(1):
-    print("iteration ",i)
-    while env.done == False:
-        env.step([0,1,0])
+# env = CarlaEnvironment()
+# print("number of available poses are : ",env.num_positions)
+# for i in range(1):
+#     print("iteration ",i)
+#     while env.done == False:
+#         env.step([0,1,0])
 
-    env.reset(True)
-print(env.action_space)
-print(env.state_space)
-env.close_server()
+#     env.reset(True)
+# print(env.action_space)
+# print(env.state_space)
+# env.close_server()
 
 # print("number of available poses are : ",env.num_positions)
 # print("follow poses are : ",env.follow_poses)
