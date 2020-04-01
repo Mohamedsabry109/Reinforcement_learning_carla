@@ -18,6 +18,7 @@ from tensorflow.keras import backend as K
 # gpu_options = tf.GPUOptions(per_process_gpu_memory_fraction=0.5)
 # sess = tf.Session(config=tf.ConfigProto(gpu_options=gpu_options))
 # K.set_session(sess)
+from Memory.memory_buffer import MemoryBuffer,OfflineMemoryBuffer
 
 import matplotlib.pyplot as plt
 import random
@@ -30,25 +31,34 @@ from enum import Enum
 
 class DDQN():
 
-    def __init__(self, data_directory = '', train_data_directory = '',validation_data_directory = '', output_directory = '', epochs = 1, number_minibatches = 16, save_every = 2, start_epoch = 1):
+    def __init__(self, imitation_data_directory = '',validation_data_directory = '', output_directory = '', epochs = 1, number_minibatches = 16, save_every = 2, start_epoch = 1):
 
         self.epochs = epochs
         self.number_minibatches = number_minibatches
         self.start_epoch = save_every
         self.start_epoch = start_epoch
         self.save_every =save_every
-        self.current_folder_generator = 0
-        self.validation_current_folder_generator = 0
+        self.batch_size = 32
+        #self.current_folder_generator = 0
+        #self.validation_current_folder_generator = 0
         self.dropout_count = 0
         self.conv_count = 0
         self.bn_count =  0
         self.pool_count = 0 
         self.fc_count = 0
-        
-        self.data_directory = data_directory
-        self.train_data_directory = train_data_directory
+        self.data_directory = imitation_data_directory
+        self.imitation_data_directory = imitation_data_directory
         self.validation_data_directory = validation_data_directory
-        self.output_directory = output_directory        
+        self.output_directory = output_directory   
+        self.branch_names = ['left','right','follow','straight']
+        self.initialize_buffers() # initializing offline buffers
+        self.getter()
+        self.model = self.get_model()
+        self.compile_model(self.model)
+        self.target_model = self.get_model()
+        self.compile_model(self.target_model)
+        print(self.model)
+        print(self.target_model)
         #creating folder for weights
         if not (os.path.isdir(self.output_directory + 'Weights')):
             os.mkdir(self.output_directory + 'Weights')
@@ -62,6 +72,22 @@ class DDQN():
 
         #self.files_list, self.batch_size, self.scenario_length, self.image_dimension = self.getter()
 
+    def initialize_buffers(self):
+        branches = ['left','right','follow', 'straight']
+        self.rl_offline_buffers = {}
+        self.rl_online_buffers = {}
+        self.imitation_offline_buffers = {}
+        self.imitation_online_buffers = {}
+        #creating buffers offline and online for all branches
+        for branch in branches:
+            #self.rl_online_buffers[branch] = MemoryBuffer(buffer_size = 1000, with_per = True , name = branch, directory = imitation_data_directory)
+            #self.rl_offline_buffers[branch] = MemoryBuffer(buffer_size = 100000, with_per = True, name = branch, directory = imitation_data_directory)
+            #self.imitation_online_buffers[branch] = MemoryBuffer(buffer_size = 1000, with_per = True, name = branch, directory = imitation_data_directory)
+            self.imitation_offline_buffers[branch] = OfflineMemoryBuffer(buffer_size = 100000, with_per = True,
+                                                                         name = branch,train_data_directory = self.imitation_data_directory,
+                                                                         validation_data_directory = self.imitation_data_directory)
+
+
 
     def getter(self):
         '''
@@ -69,30 +95,35 @@ class DDQN():
         self.images_per_h5_file
         self.imag_dim
         '''
-        files_list = sorted(os.listdir(self.data_directory))
-        current_directory = self.data_directory +  files_list[0]
+        files_list = sorted(os.listdir(self.data_directory+'/'+'follow'))
+        current_directory = self.data_directory + '/' + 'follow'+ '/' + files_list[0]
         with h5py.File(current_directory, 'r') as hdf:
             imgs = hdf.get('rgb') # ALL THE 200 IMAGES IN THE H5 FILE
             imgs = np.array(imgs[:,:,:], dtype = np.uint8)
             image_shape = imgs.shape
             targets = hdf.get('targets') # ALL THE 200 TARGETS IN THE H5 FILE
             targets = np.array(targets)
+
+            self.image_dimension = image_shape[-3:]
+            self.scenario_length = image_shape[0]
         
-        print("INPUT SHAPE IS:", image_shape)
-        if len(image_shape) == 4:
-            #single frames
-            print("Single frames data")
-            batch_size = image_shape[0]
-            image_dimension = image_shape[1:]
-            scenario_length = 1
-        elif len(image_shape) == 5:
-            #stacked frames
-            print("stacked frames data")
-            batch_size = image_shape[0]
-            scenario_length = image_shape[1]
-            image_dimension = image_shape[2:]
+            # print("INPUT SHAPE IS:", self.image_dimension)
+            # print("scenrion length ",self.scenario_length)
+
+        # if len(image_shape) == 4:
+        #     #single frames
+        #     print("Single frames data")
+        #     batch_size = image_shape[0]
+        #     image_dimension = image_shape[1:]
+        #     scenario_length = 1
+        # elif len(image_shape) == 5:
+        #     #stacked frames
+        #     print("stacked frames data")
+        #     batch_size = image_shape[0]
+        #     scenario_length = image_shape[1]
+        #     image_dimension = image_shape[2:]
         
-        return files_list, batch_size, scenario_length, image_dimension    
+        # return files_list, batch_size, scenario_length, image_dimension    
     
     def conv(self,input_layer, kernel_size, stride, n_filters ,padding='same',data_format = "channels_last", activation ='relu', time_stride = 0, kernel_size_time = 0 ,name=None):
         self.conv_count +=1
@@ -139,27 +170,29 @@ class DDQN():
     
     def get_branched_network(self,input_shape):
         image = Input(input_shape,name='image_input')
-        print(image)
+        #print(image)
         layer = self.conv_block(image,5 , 2, 32, padding ='valid', drop_out = 0.2, name ='CONV1')
-        print(layer)
+        
+        #print(layer)
         layer = self.conv_block(layer,3 , 1, 32, padding ='valid', drop_out = 0.2, name ='CONV2')
-        print(layer)
+        
+        #print(layer)
         layer = self.conv_block(layer,3 , 2, 64, padding ='valid', drop_out = 0.2, name ='CONV3')
-        print(layer)
+        #print(layer)
         layer = self.conv_block(layer,3 , 1, 64, padding ='valid', drop_out = 0.2, name ='CONV4')
-        print(layer)
+        #print(layer)
         layer = self.conv_block(layer,3 , 2, 128, padding ='valid', drop_out = 0.2, name ='CONV5')
-        print(layer)
+        #print(layer)
         layer = self.conv_block(layer,3 , 1, 128, padding ='valid', drop_out = 0.2, name ='CONV6')
-        print(layer)
+        #print(layer)
         layer = self.conv_block(layer,3 , 2, 256, padding ='valid', drop_out = 0.2, name ='CONV7')
-        print(layer)
+        #print(layer)
         layer = self.conv_block(layer,3 , 1, 256, padding ='valid', drop_out = 0.2, name ='CONV8')
-        print(layer)
+        #print(layer)
         layer = self.flatten(layer)
-        print(layer)
+        #print(layer)
         layer = self.fc(layer, 512, drop_out = 0.5, name ='CONV_FC1')
-        print(layer)
+        #print(layer)
         layer = self.fc(layer, 512, drop_out = 0.5, name ='CONV_FC2')
         
         # Speed sensory input
@@ -170,7 +203,7 @@ class DDQN():
         layer_speed =  self.fc(layer_speed, 128, drop_out = 0.5, name ='SPEED_FC2')
         
         middle_layer = self.concat(layer,layer_speed, name ='CONCAT_FC1')
-        print(middle_layer)
+        #print(middle_layer)
         
         branches_names = ['follow', 'left', 'right', 'straight' , 'speed']
         
@@ -188,7 +221,7 @@ class DDQN():
                 branch_output = self.fc(middle_layer, 256, drop_out = 0.5, name =branches_names[i]+'_FC1')
                 branch_output = self.fc(branch_output, 256, drop_out = 0.5, name =branches_names[i]+'_FC2')
                 branch_output = self.fc(branch_output, 25, drop_out = 0, name =output_branches_names[(i)])
-                branches[output_branches_names[i]]=branch_output
+                branches[output_branches_names[i]] = branch_output
                 
             else:
                 #only used images feature vector for predicting speed
@@ -198,61 +231,14 @@ class DDQN():
                 branch_output = self.fc(branch_output, 1, drop_out = 0, name =output_branches_names[-1])
                 branches[output_branches_names[-1]] =  branch_output 
                 
-        self.model = Model(inputs = [image, speed_input],outputs = [branches['left_branch'],
-                                                               branches['right_branch'],
-                                                               branches['follow_branch'],
-                                                               branches['str_branch'],
-                                                               branches['speed_branch_output']])
+        return Model(inputs = [image, speed_input],outputs = [branches['left_branch'],
+                                                                   branches['right_branch'],
+                                                                   branches['follow_branch'],
+                                                                   branches['str_branch'],
+                                                                   branches['speed_branch_output']])
 
-        print(self.model.summary()) 
-        
-    def get_unbranched_network(self,input_shape):
-        image = Input(input_shape)
-        print(image)
-        layer = self.conv_block(image,5 , 2, 32, padding ='valid', drop_out = 0.2, name ='conv1')
-        print(layer)
-        layer = self.conv_block(layer,3 , 1, 32, padding ='valid', drop_out = 0.2, name ='conv2')
-        print(layer)
-        layer = self.conv_block(layer,3 , 2, 64, padding ='valid', drop_out = 0.2, name ='conv3')
-        print(layer)
-        layer = self.conv_block(layer,3 , 1, 64, padding ='valid', drop_out = 0.2, name ='conv4')
-        print(layer)
-        layer = self.conv_block(layer,3 , 2, 128, padding ='valid', drop_out = 0.2, name ='conv5')
-        print(layer)
-        layer = self.conv_block(layer,3 , 1, 128, padding ='valid', drop_out = 0.2, name ='conv6')
-        print(layer)
-        layer = self.conv_block(layer,3 , 2, 256, padding ='valid', drop_out = 0.2, name ='conv7')
-        print(layer)
-        layer = self.conv_block(layer,3 , 1, 256, padding ='valid', drop_out = 0.2, name ='conv8')
-        print(layer)
-        layer = self.flatten(layer, name ='flatten')
-        print(layer)
-        layer = self.fc(layer, 512, drop_out = 0.5, name ='conv_fc1')
-        print(layer)
-        layer = self.fc(layer, 512, drop_out = 0.5, name ='conv_fc2')
-        
-        speed=(1,) # input layer'
-        speed_input = Input(speed)
-        layer_speed =  self.fc(layer, 128, drop_out = 0.5, name ='speed_fc1')
-        layer_speed =  self.fc(layer_speed, 128, drop_out = 0.5, name ='speed_fc2')
-        
-        middle_layer = self.concat(layer,layer_speed, name ='concat')
-        print(middle_layer)
-        
-        steer = self.fc(middle_layer, 256, drop_out = 0.5, name ='steer_fc_1')
-        steer = self.fc(steer, 256, drop_out = 0.5, name ='steer_fc_2')
-        steer = self.fc(steer, 1, activation = 'relu', drop_out = 0, name ='steer_output')
-        
-        throttle = self.fc(middle_layer, 256, drop_out = 0.5, name ='throttle_fc_1')
-        throttle = self.fc(throttle, 256, drop_out = 0.5, name ='throttle_fc_2')
-        throttle = self.fc(throttle, 1, activation = 'relu', drop_out = 0, name ='throttle_output')
-        
-        brake =  self.fc(middle_layer, 256, drop_out = 0.5, name ='brake_fc_1')
-        brake =  self.fc(brake, 256, drop_out = 0.5, name ='brake_fc_2')
-        brake =  self.fc(brake, 1, activation = 'relu', drop_out =0, name='brake_output')
-        self.model = Model(inputs = [image, speed_input],outputs = [steer, throttle , brake ])
-        print(self.model.summary())
-        
+        #print(self.model.summary()) 
+        print("Building the model")
     def get_model(self):
 
         if (self.scenario_length == 1):    
@@ -261,44 +247,138 @@ class DDQN():
             self.input_shape =  (self.scenario_length,) + self.image_dimension # Something like (32,5,200,200,3)
             
         print("Input shape to the network ", self.input_shape)   
-        self.get_branched_network(self.input_shape)
-        #self.get_unbranched_network(self.input_shape)
-            
+        return self.get_branched_network(self.input_shape)
+        #self.compile_model()            
 
-    
+
+    def rl_loss(self, r_s_a, q_next_s_next_a, q_s_a):
+        """
+        #reward + discount factor * aaction value for best action in the target network - action value for current action in the online network all squared        I/P : 
+               r_s_a -> reward for current state and action
+               q_next_s_next_a -> predicted state action value functions for next states and best action calculated from target network
+               q_s_a  -> predicted state action value functions for demonestrated action
+        O/P : rl loss
+        """
+        gamma = 0.99
+        #max over q_s_a
+        #calculate q_s_ae
+        batch_size = 32
+        for i in range(4):
+            for j in range(batch_size):
+                q_next_s = np.max(q_next_s_next_a[i*batch_size+j])
+                action_token = int(np.argmax(q_s_a_temp[i][i*batch_size+j]))
+                #print(demonestration_action)
+                #print(action_token)
+                q_s_a_temp[i][i*batch_size+j][action_token] += (r_s_a + q_s_a_temp[i][i*batch_size+j][demonestration_action] - q_next_s) 
+
+        return q_s_a_temp
+        
+        
+        pass
+    def supervised_loss(self,q_s_a,ae):
+        """
+        #max of current ation value + 0.8 - action value of the right action from demonestrations
+        I/P : 
+               q_s_a -> predicted state action value functions,list of shape [5,128,25]
+               ae - > numpy array of shape 128
+        O/P : spervised loss
+        """
+        l_ae_a = 0.8
+        #max over q_s_a
+        #calculate q_s_ae
+        batch_size = 32
+        q_s_a_temp = q_s_a
+        for i in range(4):
+            for j in range(batch_size):
+                demonestration_action = int(ae[i*batch_size+j])
+                action_token = int(np.argmax(q_s_a[i][i*batch_size+j]))
+                #print(demonestration_action)
+                #print(action_token)
+                q_s_a[i][i*batch_size+j][action_token] += (l_ae_a - q_s_a[i][i*batch_size+j][demonestration_action]) 
+
+        return q_s_a
+
+    def train_agent(self):
+        """
+            This model take care of all model's training stuff
+            1- fetch mini batches for training
+            2- calculate state action value function for current state and next states
+            3- calculate td errors
+            4- change priorities
+            5- calculate supervised loss and rl loss 
+        """
+        training_states_batch = np.zeros(shape = (128, 88, 200, 3))
+        training_next_states_batch = np.zeros(shape = (128, 88, 200, 3))
+        actions = np.zeros(shape = (128))
+        next_actions = np.zeros(shape = (128))
+        speed = np.zeros(shape = (128))
+        next_speed = np.zeros(shape = (128))
+
+        for i in range(4):
+            #training_states_batch[i*32:(i+1)*32], training_next_states_batch[i*32:(i+1)*32], actions[i*32:(i+1)*32], next_actions[i*32:(i+1)*32] = self.imitation_offline_buffers[self.branch_names[i]].data_handler.fetch_minibatch(branch_name = self.branch_names[i] , number_of_files =100)
+            training_states_batch[i*32:(i+1)*32], training_next_states_batch[i*32:(i+1)*32], actions[i*32:(i+1)*32], next_actions[i*32:(i+1)*32], speed[i*32:(i+1)*32] , next_speed[i*32:(i+1)*32] = self.imitation_offline_buffers[self.branch_names[i]].fetch(32)
+
+        # print(training_states_batch.shape)
+        # print(self.model)
+        # print(self.target_model)
+        q_s_a = self.model.predict([training_states_batch,speed])   
+        q_next_s_next_a = self.target_model.predict([training_next_states_batch,next_speed])
+        
+        y_true = self.rl_loss(0,q_next_s_next_a,q_s_a) + self.supervised_loss(q_s_a,actions)
+        #model.fit([input,true_output])
+
     def masked_loss_function(self, y_true, y_pred):
         mask_value=-2
-        mask = K.cast(K.not_equal(y_true, mask_value), K.floatx())      
-        return keras.losses.mean_absolute_error(y_true * mask, y_pred * mask)
+        mask = K.cast(K.not_equal(y_true, mask_value), K.floatx())     
+        return keras.losses.mean_squared_error(y_true * mask, y_pred * mask)
     
-    def compile_model(self):
+    def compile_model(self,model):
         opt = Adam(lr=0.0002, beta_1=0.7, beta_2=0.85, decay=1e-6)
-        self.model.compile(optimizer = opt, loss = {'left_branch_steering': self.masked_loss_function,
-                                                                    'left_branch_gas': self.masked_loss_function,
-                                                                    'left_branch_brake': self.masked_loss_function,                                                                                      
-                                                                    'right_branch_steering': self.masked_loss_function,
-                                                                    'right_branch_gas': self.masked_loss_function,
-                                                                    'right_branch_brake': self.masked_loss_function,                                                                                                              
-                                                                    'follow_branch_steering': self.masked_loss_function,
-                                                                    'follow_branch_gas': self.masked_loss_function,
-                                                                    'follow_branch_brake': self.masked_loss_function,
-                                                                    'str_branch_steering': self.masked_loss_function,
-                                                                    'str_branch_gas': self.masked_loss_function,
-                                                                    'str_branch_brake': self.masked_loss_function,
-                                                                    'speed_branch_output': self.masked_loss_function},
-                                                                        loss_weights = {'left_branch_steering': 0.4275,
-                                                                    'left_branch_gas': 0.4275,
-                                                                    'left_branch_brake': 0.0475,
-                                                                    'right_branch_steering': 0.4275,                                                                                                                
-                                                                    'right_branch_gas': 0.4275,
-                                                                    'right_branch_brake': 0.0475,                                                                                                           
-                                                                    'follow_branch_steering': 0.4275,                                                                                                               
-                                                                    'follow_branch_gas': 0.4275,
-                                                                        'follow_branch_brake': 0.0475,                                                                                                           
-                                                                    'str_branch_steering': 0.4275,                                                                                                              
-                                                                    'str_branch_gas': 0.4275,
-                                                                    'str_branch_brake': 0.0475,                                                                                                                     
-                                                                    'speed_branch_output': 0.05})
+        # self.model.compile(optimizer = opt, loss = {'left_branch_steering': self.masked_loss_function,
+        #                                                             'left_branch_gas': self.masked_loss_function,
+        #                                                             'left_branch_brake': self.masked_loss_function,                                                                                      
+        #                                                             'right_branch_steering': self.masked_loss_function,
+        #                                                             'right_branch_gas': self.masked_loss_function,
+        #                                                             'right_branch_brake': self.masked_loss_function,                                                                                                              
+        #                                                             'follow_branch_steering': self.masked_loss_function,
+        #                                                             'follow_branch_gas': self.masked_loss_function,
+        #                                                             'follow_branch_brake': self.masked_loss_function,
+        #                                                             'str_branch_steering': self.masked_loss_function,
+        #                                                             'str_branch_gas': self.masked_loss_function,
+        #                                                             'str_branch_brake': self.masked_loss_function,
+        #                                                             'speed_branch_output': self.masked_loss_function},
+        #                                                                 loss_weights = {'left_branch_steering': 0.4275,
+        #                                                             'left_branch_gas': 0.4275,
+        #                                                             'left_branch_brake': 0.0475,
+        #                                                             'right_branch_steering': 0.4275,                                                                                                                
+        #                                                             'right_branch_gas': 0.4275,
+        #                                                             'right_branch_brake': 0.0475,                                                                                                           
+        #                                                             'follow_branch_steering': 0.4275,                                                                                                               
+        #                                                             'follow_branch_gas': 0.4275,
+        #                                                                 'follow_branch_brake': 0.0475,                                                                                                           
+        #                                                             'str_branch_steering': 0.4275,                                                                                                              
+        #                                                             'str_branch_gas': 0.4275,
+        #                                                             'str_branch_brake': 0.0475,                                                                                                                     
+        #                                                             'speed_branch_output': 0.05})
+
+        # self.model.compile(optimizer = opt, loss = {'left_branch_steering': self.masked_loss_function,
+        #                                                             'left_branch_gas': self.masked_loss_function,
+        #                                                             'left_branch_brake': self.masked_loss_function,                                                                                      
+        #                                                             'right_branch_steering': self.masked_loss_function,
+        #                                                             'right_branch_gas': self.masked_loss_function,
+        #                                                             'right_branch_brake': self.masked_loss_function,                                                                                                              
+        #                                                             'follow_branch_steering': self.masked_loss_function,
+        #                                                             'follow_branch_gas': self.masked_loss_function,
+        #                                                             'follow_branch_brake': self.masked_loss_function,
+        #                                                             'str_branch_steering': self.masked_loss_function,
+        #                                                             'str_branch_gas': self.masked_loss_function,
+        #                                                             'str_branch_brake': self.masked_loss_function,
+        #                                                             'speed_branch_output': self.masked_loss_function})
+        model.compile(optimizer = opt, loss ={'left_branch': self.masked_loss_function,
+                                                                     'right_branch': self.masked_loss_function,
+                                                                     'follow_branch': self.masked_loss_function,                                                                                      
+                                                                     'str_branch': self.masked_loss_function,
+                                                                     'speed_branch_output': self.masked_loss_function} )
         print("Done compiling model!")
         return
   
@@ -310,7 +390,6 @@ class DDQN():
         '''
         branche_name is one of {'Left', 'Right', ...}
         '''
-        
         #size_minibatches_per_epoch=self.batch_size*step   #total size of batches in each epoch
         size_minibatches_per_epoch = self.batch_size*number_minibatches
         if self.scenario_length == 1:
@@ -590,3 +669,28 @@ class DDQN():
                                                                      validation_data = self.fetch_validation(self.number_minibatches,validation_number_of_files), validation_steps=int(validation_number_of_files/10),
                                                                      callbacks=[tensorboard, mc])
         #self.visualizeTraining(validation_images, validation_labels)
+
+
+
+
+    def update_target_model(self):
+        """
+            This fucntion transfer online network weights to target network
+        """
+        self.target_model.set_weights(self.model.get_weights())
+        pass
+        #self.target_model.set_weights(self.model.get_weights())
+
+    def save_model(self):
+        """
+            This function save both target and online networks
+            I/P : Models' Path
+        """
+        pass
+
+    def load_model(self):
+        """
+            This function load both target and online networks
+            I/P : Models' Path
+        """
+        pass

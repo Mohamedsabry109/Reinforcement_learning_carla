@@ -8,6 +8,7 @@ class SumTree:
 
     def __init__(self, capacity):
         self.capacity = capacity
+        #create the sumtree with double capacity of buffer
         self.tree = numpy.zeros( 2*capacity - 1 )
         self.data = numpy.zeros( capacity, dtype=object )
 
@@ -26,6 +27,8 @@ class SumTree:
         if left >= len(self.tree):
             return idx
 
+        #retrieving by this method leads to high likelihood of sampling high priorities
+        #only randomness can pick smaller errors
         if s <= self.tree[left]:
             return self._retrieve(left, s)
         else:
@@ -45,8 +48,8 @@ class SumTree:
             self.write = 0
 
     def update(self, idx, p):
+        #works for a particular replayed transition, updates the cumulative sums
         change = p - self.tree[idx]
-
         self.tree[idx] = p
         self._propagate(idx, change)
 
