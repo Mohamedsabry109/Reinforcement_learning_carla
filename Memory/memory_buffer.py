@@ -3,6 +3,30 @@ import numpy as np
 from DataHandler import data_handler
 from collections import deque
 from .sum_tree import SumTree
+import os
+
+
+"""
+    buffers tasks: 
+    OfflineBuffers:
+        support fetching from disk :
+            keep track of fetching
+            files_counter keeps track of number of files in each folder by calling initialze_buffer
+            buffer_pointer is pointer pointing to the next batch in case of fetching directly from offline buffer 
+             and is used for changing the priorities after fetching offline                                   
+
+        change priorities -> (upon fetching)
+        save data to disk space -> keep track of files traker
+
+    OnlineBufers: 
+        reloading from offline buffer
+        change priorities
+        update priorities 
+        fetching
+
+
+"""
+
 
 class MemoryBuffer(object):
     """ Memory Buffer Helper class for Experience Replay
@@ -163,6 +187,12 @@ class OfflineMemoryBuffer(MemoryBuffer):
         self.buffer_pointer = 0
         print("Checking the data for initiallizing an offline buffer of the ", self.name, " branch")
         self.data_handler = data_handler.handler(train_data_directory = train_data_directory, validation_data_directory = validation_data_directory)
+        print("tree is ",self.buffer.tree)
+
+        self.initiallize_buffer()
+        # print("buffer ",self.buffer.data[0])
+        # print("buffer size ", self.buffer.total())
+        # print("tree is ",self.buffer.tree)
         #self.data_handler.fetch_minibatch(name,100)
 
         pass
@@ -176,49 +206,56 @@ class OfflineMemoryBuffer(MemoryBuffer):
         """
         assert os.path.isdir(self.directory)
         files_list = sorted(os.listdir(self.directory + '/' + self.name + '/'))
+        print("length of files ",len(files_list))
         assert files_list != []
-        #print(files_list[0])
         self.files_counter = 0
         for file_name in files_list:         
             self.memorize(name = file_name, error = 0)
             self.files_counter += 1
 
-    def change_priorities(self):
+    def change_priorities(self,idxs,errors):
         """
             change priorities of offline buffer items, online buffers needs to store the idx in offline buffer of
             each element in it
-            we can then change priorities of idxs
-            we can iterate on the online bufferidx and error and then update offline buffer, get 
-            we can depend on just the buffer_pointer
+
         """ 
+        for i,idx in enumerate(idxs):
+            self.update(idx,errors[i])
 
-        pass
-
-    def memorize(self,name= None, error=None, path = None):
+    def memorize(self,name= None, error=None):
         """ Save an experience to memory, optionally with its TD-Error
         """
         data = (name, error)
+        data = name
         if(self.with_per):
-            priority = self.priority(error[0])
-            self.buffer.add(priority, experience)
+            #priority = self.priority(error[0])
+            priority = self.priority(error)
+            self.buffer.add(priority, data)
             self.count += 1
         else:
             # Check if buffer is already full
             if self.count < self.buffer_size:
-                self.buffer.append(experience)
+                self.buffer.append(data)
                 self.count += 1
             else:
                 self.buffer.popleft()
-                self.buffer.append(experience)
+                self.buffer.append(data)
 
     def fetch(self, batch_size):
         """ Sample a batch, optionally with (PER)
             a batch include all idxs in the offline buffer
             change priorities should be called directly after one step learining
         """
+        #handling case of arriving at the end of the file
+        if self.buffer_pointer <= self.files_counter - 32:
+            idxs = np.linspace(self.buffer_pointer, self.buffer_pointer + batch_size - 1 , batch_size)
+        else:
+            idxs1 = np.linspace(self.buffer_pointer, self.files_counter , self.files_counter - self.buffer_pointer + 1) 
+            idxs2 = np.linspace(0,(batch_size - (self.files_counter - self.buffer_pointer) - 2) ,(batch_size - (self.files_counter - self.buffer_pointer)-1))
+            idxs = np.concatenate(idxs1, idxs2, axis = 0)
+        
         self.buffer_pointer += batch_size
-        #TODO keep track of number of files
-        return self.data_handler.fetch_minibatch(self.name,100)
+        return self.data_handler.fetch_minibatch(self.name,self.files_counter)
 
 
     def save_episode_data(batch):

@@ -29,7 +29,7 @@ agent = dqn.DDQN(imitation_data_directory=imitation_data_directory)
 #target_agent = dqn.DDQN()
 exp_policy = EpsilonGreedy(epsilon = 0.5, linear_schedule = [0.5,0.05,10])
 #agent.initialize_buffers()
-agent.train_agent()
+#agent.train_agent()
 #first we will do imitation while preparing offline buffers of imitation
 #when starts interaction initialize online buffer for rl
 #prepare and initialize online  and offline buffers for rl

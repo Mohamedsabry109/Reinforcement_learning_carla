@@ -10,6 +10,7 @@ class SumTree:
         self.capacity = capacity
         #create the sumtree with double capacity of buffer
         self.tree = numpy.zeros( 2*capacity - 1 )
+        #actual data are sotred in self.data
         self.data = numpy.zeros( capacity, dtype=object )
 
     def _propagate(self, idx, change):
