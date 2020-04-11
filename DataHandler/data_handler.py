@@ -4,12 +4,14 @@ from progressbar import *
 import os, os.path
 import matplotlib.pyplot as plt
 import random
-# import imgaug as ia
-# from imgaug import augmenters as iaa
+from Utils import config
 import re
 import cv2
 from PIL import Image
 import IPython
+
+# import imgaug as ia
+# from imgaug import augmenters as iaa
 
 class handler(object):
     def __init__(self, train_data_directory, validation_data_directory, scenario_length = 1, batch_size = 32):
@@ -24,6 +26,7 @@ class handler(object):
         self.current_folder_generator = 0
         self.validation_current_folder_generator = 0
         self.check_data()
+        action_dict = self.get_comb(config.STEER_VALUES, config.THROTTLE_BRAKE_VALUES)
 
     def check_data(self):
         '''
@@ -362,38 +365,57 @@ class handler(object):
         '''
         pass
 
-    def map_outputs(self, throttle, steer, brake = 0, disceretization_bins = 5, one_output_for_throttle_brake = True):
+    def get_comb(self, steer_range, throttle_range):
+        c = {}
+        action_number = 0
+        for i in steer_range:
+            for j in throttle_range:
+                key = str(i) + str(j)
+                c[key] = action_number
+                action_number += 1  
+        return c
+
+
+    def map_outputs(self, throttle, steer, brake = 0, disceretization_bins = 20, one_output_for_throttle_brake = True):
         '''
             This Fucntion Maps continous outputs from Demonstration data to disceret values
             Input : 
             Output : action number 
         '''
-        epsilon = 0.1
-        steer_range = [-1, 1]
-        steer_outputs = np.linspace(steer_range[0], steer_range[1], num=disceretization_bins)
-        throttle_brake_range = [-1 , 1]
+        # epsilon = 0.1
+        # steer_range = [-1, 1]
+        # steer_outputs = np.linspace(steer_range[0], steer_range[1], num=disceretization_bins)
+        # throttle_brake_range = [-1 , 1]
 
-        if one_output_for_throttle_brake:
-        	#print("creating one array for both throttle and brake")
-        	throttle_brake_outputs = np.linspace(throttle_brake_range[0], throttle_brake_range[1], num=disceretization_bins)
+        # if one_output_for_throttle_brake:
+        # 	#print("creating one array for both throttle and brake")
+        # 	throttle_brake_outputs = np.linspace(throttle_brake_range[0], throttle_brake_range[1], num=disceretization_bins)
 
-        	if brake > 0.01 and throttle < 0.01:
-        		throttle = -brake
+        # 	if brake > 0.01 and throttle < 0.01:
+        # 		throttle = -brake
 
-        num_actions = len(steer_outputs) * len(throttle_brake_outputs) 
+        # num_actions = len(steer_outputs) * len(throttle_brake_outputs) 
         
-        steer_action = int(steer_outputs[int(round(((steer - steer_range[0])/(steer_range[1]-steer_range[0]))*(disceretization_bins-1) + epsilon ))])
-        throttle_brake_action = int(throttle_brake_outputs[int(round(((throttle - throttle_brake_range[0])/(throttle_brake_range[1]-throttle_brake_range[0]))*(disceretization_bins-1) + epsilon ))])
+        # steer_action = int(steer_outputs[int(round(((steer - steer_range[0])/(steer_range[1]-steer_range[0]))*(disceretization_bins-1) + epsilon ))])
+        # throttle_brake_action = int(throttle_brake_outputs[int(round(((throttle - throttle_brake_range[0])/(throttle_brake_range[1]-throttle_brake_range[0]))*(disceretization_bins-1) + epsilon ))])
         
-        action_number = int(((np.where(steer_outputs == steer_action)[0] ) * 5 ) + np.where(throttle_brake_outputs == throttle_brake_action)[0] )
+        # action_number = int(((np.where(steer_outputs == steer_action)[0] ) * 5 ) + np.where(throttle_brake_outputs == throttle_brake_action)[0] )
 
-        return action_number
+        # return action_number
+        diff = throttle - brake
+        steer_action = np.round(steer,1)
+        print("quantized steer ",steer_action)
+        throttle_brake_action = np.round(diff,1)
+        print("quantized throttle_brake ",throttle_brake_action)
+        action_num = action_dict[str(steer_action)+str(steer_action)]
+        return action_num
 
 
-# data_directory = '/home/mohamed/Desktop/Codes/rlfd_data/imitation_data'
-# train_data_directory = '/home/mohamed/Desktop/Codes/rlfd_data/imitation_data'
-# validation_data_directory = '/home/mohamed/Desktop/Codes/rlfd_data/imitation_data'
-# handler = handler(train_data_directory = train_data_directory, validation_data_directory = validation_data_directory )
 
-# print(handler.map_outputs(throttle = 1, steer = 0.199))
-# handler.fetch_single_image(1)
+data_directory = '/home/mohamed/Desktop/Codes/rlfd_data/imitation_data'
+train_data_directory = '/home/mohamed/Desktop/Codes/rlfd_data/imitation_data'
+validation_data_directory = '/home/mohamed/Desktop/Codes/rlfd_data/imitation_data'
+handler = handler(train_data_directory = train_data_directory, validation_data_directory = validation_data_directory )
+
+print(handler.map_outputs(throttle =0.23 , brake = 1 , steer = 0.91))
+#handler.fetch_single_image(1)
