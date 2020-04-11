@@ -14,6 +14,7 @@ from typing import List, Union
 import pygame
 
 from Environments import carla_environment
+from DataHandler import data_handler
 
 from Agent import dqn
 from Memory.memory_buffer import MemoryBuffer,OfflineMemoryBuffer
@@ -25,9 +26,9 @@ interaction_data_directory = '/home/mohamed/Desktop/Codes/rlfd_data/rl_data'
 imitation_data_directory = '/home/mohamed/Desktop/Codes/rlfd_data/imitation_data'
 validation_data_directory = '/home/mohamed/Desktop/Codes/rlfd_data/imitation_data'
 
-agent = dqn.DDQN(imitation_data_directory=imitation_data_directory)
-#target_agent = dqn.DDQN()
-exp_policy = EpsilonGreedy(epsilon = 0.5, linear_schedule = [0.5,0.05,10])
+# agent = dqn.DDQN(imitation_data_directory=imitation_data_directory)
+# #target_agent = dqn.DDQN()
+# exp_policy = EpsilonGreedy(epsilon = 0.5, linear_schedule = [0.5,0.05,10])
 #agent.initialize_buffers()
 #agent.train_agent()
 #first we will do imitation while preparing offline buffers of imitation
@@ -35,3 +36,6 @@ exp_policy = EpsilonGreedy(epsilon = 0.5, linear_schedule = [0.5,0.05,10])
 #prepare and initialize online  and offline buffers for rl
 
 #agent.get_branched_network(input_shape=(3,88,200))
+handler = data_handler.handler(train_data_directory = imitation_data_directory, validation_data_directory = imitation_data_directory)
+
+print(handler.map_outputs(throttle =0 , brake = 0.9 , steer = -0.99))

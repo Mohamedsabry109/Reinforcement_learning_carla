@@ -399,6 +399,3 @@ class DDQN():
             I/P : Models' Path
         """
         pass
-
-        https://drive.google.com/open?id=1hloAeyamYn-H6MfV1dRtY1gJPhkR55sY
-        https://drive.google.com/open?id=1CENyu28BFIdlVVcl9-jRo9DdfmjZ40_s

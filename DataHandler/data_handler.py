@@ -26,7 +26,7 @@ class handler(object):
         self.current_folder_generator = 0
         self.validation_current_folder_generator = 0
         self.check_data()
-        action_dict = self.get_comb(config.STEER_VALUES, config.THROTTLE_BRAKE_VALUES)
+        self.action_dict = self.get_comb(config.STEER_VALUES, config.THROTTLE_BRAKE_VALUES)
 
     def check_data(self):
         '''
@@ -370,7 +370,7 @@ class handler(object):
         action_number = 0
         for i in steer_range:
             for j in throttle_range:
-                key = str(i) + str(j)
+                key = str(np.round(i,1)) + str(np.round(j,1))
                 c[key] = action_number
                 action_number += 1  
         return c
@@ -403,19 +403,19 @@ class handler(object):
 
         # return action_number
         diff = throttle - brake
-        steer_action = np.round(steer,1)
+        steer_action = np.float(np.round(steer,1))
         print("quantized steer ",steer_action)
-        throttle_brake_action = np.round(diff,1)
+        throttle_brake_action = np.float(np.round(diff,1))
         print("quantized throttle_brake ",throttle_brake_action)
-        action_num = action_dict[str(steer_action)+str(steer_action)]
+        action_num = self.action_dict[str(steer_action)+str(throttle_brake_action)]
         return action_num
 
 
 
-data_directory = '/home/mohamed/Desktop/Codes/rlfd_data/imitation_data'
-train_data_directory = '/home/mohamed/Desktop/Codes/rlfd_data/imitation_data'
-validation_data_directory = '/home/mohamed/Desktop/Codes/rlfd_data/imitation_data'
-handler = handler(train_data_directory = train_data_directory, validation_data_directory = validation_data_directory )
+# data_directory = '/home/mohamed/Desktop/Codes/rlfd_data/imitation_data'
+# train_data_directory = '/home/mohamed/Desktop/Codes/rlfd_data/imitation_data'
+# validation_data_directory = '/home/mohamed/Desktop/Codes/rlfd_data/imitation_data'
+# handler = handler(train_data_directory = train_data_directory, validation_data_directory = validation_data_directory )
 
-print(handler.map_outputs(throttle =0.23 , brake = 1 , steer = 0.91))
-#handler.fetch_single_image(1)
+# print(handler.map_outputs(throttle =0.23 , brake = 1 , steer = 0.91))
+# #handler.fetch_single_image(1)
