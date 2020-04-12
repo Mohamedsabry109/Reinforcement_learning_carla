@@ -136,15 +136,23 @@ class OnlineMemoryBuffer(MemoryBuffer):
     def reload(self,buffer):
 
         """
-            reload the onlinebuffer from offline buffer data according to some policy
-            follow the same procedure of sampling high priority observations
-            we can loop for a given offline buffer and sample from it
+            Given an offline buffer, sample samples with online buffer size
+            loop on all sampled files, read them and then memorize them in the offline buffer
+
         Args:
             Instant of OfflineBuffer: 
 
         Returns:
 
         """
+        offline_buffer = buffer
+        names, idxs = offline_buffer.sample_batch(self.buffer_size)
+
+        #loop on names and load in the online buffer
+        for file_name in names:
+            #load file and get data
+            self.buffer.memorize()
+
         '''
         sample from offline buffer -> name of sampled file
         store the sample in the online buffer (load the data with given name and put it the online buffer)
@@ -265,6 +273,39 @@ class OfflineMemoryBuffer(MemoryBuffer):
             else:
                 self.buffer.popleft()
                 self.buffer.append(data)
+
+
+    def sample_batch(self, batch_size):
+        """ Sample a batch, optionally with (PER)
+            a batch include all idxs
+        """
+        batch = []
+
+        # Sample using prorities
+        if(self.with_per):
+            T = self.buffer.total() // batch_size
+            for i in range(batch_size):
+                a, b = T * i, T * (i + 1)
+                s = random.uniform(a, b)
+                idx, error, data = self.buffer.get(s)
+                batch.append((*data, idx))
+
+            idx = np.array([i[1] for i in batch])
+            #idx in the offline buffer
+            
+        # Sample randomly from Buffer
+        elif self.count < batch_size:
+            idx = None
+            batch = random.sample(self.buffer, self.count)
+        else:
+            idx = None
+            batch = random.sample(self.buffer, batch_size)
+
+        # Return a batch of experience
+        names_batch = np.array([i[0] for i in batch])
+
+        return names_batch, idx
+
 
     def fetch(self, batch_size):
         """
