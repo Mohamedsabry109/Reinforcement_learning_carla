@@ -131,18 +131,28 @@ class OnlineMemoryBuffer(MemoryBuffer):
     """
     def __init__(self, buffer_size, with_per = False):
         super().__init__(buffer_size, with_per)
-
         pass
-
     
     def reload(self,buffer):
+
         """
             reload the onlinebuffer from offline buffer data according to some policy
             follow the same procedure of sampling high priority observations
             we can loop for a given offline buffer and sample from it
-            I/P : offline buffer
-            O/P : reloaded Online buffer 
+        Args:
+            Instant of OfflineBuffer: 
+
+        Returns:
+
         """
+        '''
+        sample from offline buffer -> name of sampled file
+        store the sample in the online buffer (load the data with given name and put it the online buffer)
+        buffer.get(name) -> data -> (state, next state, action, next action, reward)
+        // handling fetching state and next state
+        self.buffer.memorize(data)
+
+        '''    
         # self.clear()
         # #buffer.sample(self.buffer_size)
         # # Sample using prorities
@@ -168,12 +178,15 @@ class OnlineMemoryBuffer(MemoryBuffer):
         pass
 
     def change_priorities():
+
         """
             change priorities of online buffer items
             it should iteratively calls update
-            I/P: batch of names and errors 
-            O/P: changing priorities
-        """        
+        Args:
+
+        Returns:
+
+        """      
         pass
 
 
@@ -211,6 +224,8 @@ class OfflineMemoryBuffer(MemoryBuffer):
         for file_name in files_list:         
             self.memorize(name = file_name, error = 0)
             self.files_counter += 1
+
+        #self.files_tracker = file_name
 
     def change_priorities(self,idxs,errors):
         """
@@ -279,18 +294,8 @@ class OfflineMemoryBuffer(MemoryBuffer):
             This function take the observations of some episode and store them on the disk
             and then updating offline buffer with these new data and their priorites
             should call change priorities, keep track of names of the data
-            I/P: batch of observations
-            O/P: saving states, next states, rewards in disk and update all tracker
-            each state and it's next state is saved in one file
-        """
-        """
-        Fetching a Mini-batch from one of the branches.
-
         Args:
-            branch_name: str 
-            number_of_files: int
-        Returns:
-            states, next_states, actions, next_actions, velocity, next_veloctiym reward
+            batch: {state:,action,errors} 
         """
 
         pass
