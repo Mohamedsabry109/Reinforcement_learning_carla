@@ -209,6 +209,7 @@ class handler(object):
 
         for i in range(self.batch_size):
             filename= self.train_data_directory + '/'+branch_name +'/data_' + str(self.current_folder_generator)+ '.h5'
+            self.current_folder_generator += 1
             #print(filename)
             with h5py.File(filename, 'r') as hdf:
                     imgs = hdf.get('rgb')

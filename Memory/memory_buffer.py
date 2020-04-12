@@ -225,6 +225,7 @@ class OfflineMemoryBuffer(MemoryBuffer):
 
     def memorize(self,name= None, error=None):
         """
+<<<<<<< HEAD
         Memorize data in the buffer.
 
         Args:
@@ -232,7 +233,9 @@ class OfflineMemoryBuffer(MemoryBuffer):
             error: int
         """
 
-        data = (name, error)
+=======
+        # data = (name, error)
+>>>>>>> 28f4ac46783eb4b550d90adc152f662790a55df0
         data = name
         if(self.with_per):
             #priority = self.priority(error[0])
