@@ -225,7 +225,7 @@ class OfflineMemoryBuffer(MemoryBuffer):
     def memorize(self,name= None, error=None):
         """ Save an experience to memory, optionally with its TD-Error
         """
-        data = (name, error)
+        # data = (name, error)
         data = name
         if(self.with_per):
             #priority = self.priority(error[0])
