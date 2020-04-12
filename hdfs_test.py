@@ -1,7 +1,7 @@
 import h5py
 import os
 import time
-
+import numpy as np
 
 class hdfs_test():
 	def __init__(self, file_path, saving_directory):
