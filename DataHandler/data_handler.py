@@ -183,17 +183,22 @@ class handler(object):
 
 
     def fetch_minibatch(self,branch_name,number_of_files):
-        '''
-        branche_name is one of {'Left', 'Right', ...}
-        '''
-        
+        """
+        Fetching a Mini-batch from one of the branches.
+
+        Args:
+            branch_name: str 
+            number_of_files: int
+        Returns:
+            states, next_states, actions, next_actions, velocity, next_veloctiym reward
+        """
+            
         size_minibatches_per_epoch = self.batch_size
         target_size = (size_minibatches_per_epoch,) +  self.image_dimension[1:]
         images = np.zeros(target_size)
         next_images = np.zeros(target_size)
         action = np.zeros(self.batch_size)
         next_action = np.zeros(self.batch_size)
-        #print('images shapes ',images.shape)
         velocity = np.zeros((size_minibatches_per_epoch,))
         next_velocity = np.zeros((size_minibatches_per_epoch,))
         mask_steer = np.ones((self.batch_size,))*(-2)
@@ -349,9 +354,6 @@ class handler(object):
                 #print(imgs.shape)
                 targets = hdf.get('targets')
                 targets = np.array(targets)
-                #print(imgs.shape)
-                #print(imgs)
-                #print(targets)
                 steer = targets[:,0][0]
                 throttle = targets[:,1][0]
                 brake = targets[:,2][0]
@@ -382,25 +384,6 @@ class handler(object):
             Input : 
             Output : action number 
         '''
-        # epsilon = 0.1
-        # steer_range = [-1, 1]
-        # steer_outputs = np.linspace(steer_range[0], steer_range[1], num=disceretization_bins)
-        # throttle_brake_range = [-1 , 1]
-
-        # if one_output_for_throttle_brake:
-        # 	#print("creating one array for both throttle and brake")
-        # 	throttle_brake_outputs = np.linspace(throttle_brake_range[0], throttle_brake_range[1], num=disceretization_bins)
-
-        # 	if brake > 0.01 and throttle < 0.01:
-        # 		throttle = -brake
-
-        # num_actions = len(steer_outputs) * len(throttle_brake_outputs) 
-        
-        # steer_action = int(steer_outputs[int(round(((steer - steer_range[0])/(steer_range[1]-steer_range[0]))*(disceretization_bins-1) + epsilon ))])
-        # throttle_brake_action = int(throttle_brake_outputs[int(round(((throttle - throttle_brake_range[0])/(throttle_brake_range[1]-throttle_brake_range[0]))*(disceretization_bins-1) + epsilon ))])
-        
-        # action_number = int(((np.where(steer_outputs == steer_action)[0] ) * 5 ) + np.where(throttle_brake_outputs == throttle_brake_action)[0] )
-
         # return action_number
         diff = throttle - brake
         steer_action = np.float(np.round(steer,1))

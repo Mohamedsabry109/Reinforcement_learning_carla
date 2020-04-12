@@ -199,10 +199,9 @@ class OfflineMemoryBuffer(MemoryBuffer):
 
     def initiallize_buffer(self):
         """
-            Initiallize offline buffer with all data of imitation learning to start track their priorities
+        Initiallize offline buffer with all data of imitation learning to start track their priorities
             and get information about names and initiallize a tracker for updating
-            I/P : read all files in a given folder and initiallize the buffer with names and priorities of zero
-            O/P : no output
+
         """
         assert os.path.isdir(self.directory)
         files_list = sorted(os.listdir(self.directory + '/' + self.name + '/'))
@@ -215,16 +214,24 @@ class OfflineMemoryBuffer(MemoryBuffer):
 
     def change_priorities(self,idxs,errors):
         """
-            change priorities of offline buffer items, online buffers needs to store the idx in offline buffer of
+        change priorities of offline buffer items, online buffers needs to store the idx in offline buffer of
             each element in it
-
-        """ 
+        Args:
+            idxs: array of int 
+            errors: array of int
+        """
         for i,idx in enumerate(idxs):
             self.update(idx,errors[i])
 
     def memorize(self,name= None, error=None):
-        """ Save an experience to memory, optionally with its TD-Error
         """
+        Memorize data in the buffer.
+
+        Args:
+            name: str 
+            error: int
+        """
+
         data = (name, error)
         data = name
         if(self.with_per):
@@ -242,9 +249,15 @@ class OfflineMemoryBuffer(MemoryBuffer):
                 self.buffer.append(data)
 
     def fetch(self, batch_size):
-        """ Sample a batch, optionally with (PER)
-            a batch include all idxs in the offline buffer
-            change priorities should be called directly after one step learining
+        """
+        Fetching a Mini-batch from one of the branches.
+
+        Args:
+            batch_size: int 
+
+        Returns:
+            states, next_states, actions, next_actions, reward
+            states inlcude the images and velocity
         """
         #handling case of arriving at the end of the file
         if self.buffer_pointer <= self.files_counter - 32:
@@ -266,6 +279,15 @@ class OfflineMemoryBuffer(MemoryBuffer):
             I/P: batch of observations
             O/P: saving states, next states, rewards in disk and update all tracker
             each state and it's next state is saved in one file
+        """
+        """
+        Fetching a Mini-batch from one of the branches.
+
+        Args:
+            branch_name: str 
+            number_of_files: int
+        Returns:
+            states, next_states, actions, next_actions, velocity, next_veloctiym reward
         """
 
         pass
