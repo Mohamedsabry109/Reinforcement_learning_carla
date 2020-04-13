@@ -6,28 +6,6 @@ from .sum_tree import SumTree
 import os
 
 
-"""
-    buffers tasks: 
-    OfflineBuffers:
-        support fetching from disk :
-            keep track of fetching
-            files_counter keeps track of number of files in each folder by calling initialze_buffer
-            buffer_pointer is pointer pointing to the next batch in case of fetching directly from offline buffer 
-             and is used for changing the priorities after fetching offline                                   
-
-        change priorities -> (upon fetching)
-        save data to disk space -> keep track of files traker
-
-    OnlineBufers: 
-        reloading from offline buffer
-        change priorities
-        update priorities 
-        fetching
-
-
-"""
-
-
 class MemoryBuffer(object):
     """ Memory Buffer Helper class for Experience Replay
     using a double-ended queue or a Sum Tree (for PER)
@@ -129,8 +107,8 @@ class OnlineMemoryBuffer(MemoryBuffer):
     """ Memory Buffer Helper class for Experience Replay
     using a double-ended queue or a Sum Tree (for PER)
     """
-    def __init__(self, buffer_size, with_per = False):
-        super().__init__(buffer_size, with_per)
+    def __init__(self, buffer_size, with_per = False, name = None, directory = None):
+        super().__init__(buffer_size, with_per, name, directory)
         pass
     
     def reload(self,buffer):
@@ -138,6 +116,8 @@ class OnlineMemoryBuffer(MemoryBuffer):
         """
             Given an offline buffer, sample samples with online buffer size
             loop on all sampled files, read them and then memorize them in the offline buffer
+            we must load states and map targets to discrete actions
+            keep track of idxs of offline buffer
 
         Args:
             Instant of OfflineBuffer: 
@@ -147,53 +127,37 @@ class OnlineMemoryBuffer(MemoryBuffer):
         """
         offline_buffer = buffer
         names, idxs = offline_buffer.sample_batch(self.buffer_size)
-
+        self.offline_idxs = idxs
         #loop on names and load in the online buffer
         for file_name in names:
             #load file and get data
             self.buffer.memorize()
 
-        '''
-        sample from offline buffer -> name of sampled file
-        store the sample in the online buffer (load the data with given name and put it the online buffer)
-        buffer.get(name) -> data -> (state, next state, action, next action, reward)
-        // handling fetching state and next state
-        self.buffer.memorize(data)
+        
 
-        '''    
-        # self.clear()
-        # #buffer.sample(self.buffer_size)
-        # # Sample using prorities
-        # if(self.with_per):
-        #     T = buffer.total() // batch_size
-        #     for i in range(batch_size):
-        #         a, b = T * i, T * (i + 1)
-        #         s = random.uniform(a, b)
-        #         idx, error, data = self.buffer.get(s)
-                #fetch this file
-
-        #         batch.append((*data, idx))
-        #     idx = np.array([i[5] for i in batch])
-        #     #TD errors are only updated for transitions that are replayed
-            
-        # # Sample randomly from Buffer
-        # elif self.count < batch_size:
-        #     idx = None
-        #     batch = random.sample(self.buffer, self.count)
-        # else:
-        #     idx = None
-        #     batch = random.sample(self.buffer, batch_size)
         pass
 
-    def change_priorities():
+    def change_priorities(idxs, errors):
 
         """
             change priorities of online buffer items
             it should iteratively calls update
+
         Args:
+        idxs of samples in online buffer 
+        errors of samples in online buffer
+        """      
+        pass
 
-        Returns:
+    def update_offline_priorities(idxs, errors):
 
+        """
+            change priorities of online buffer items
+            it should iteratively calls update
+
+        Args:
+        idxs of samples in offline buffer 
+        errors of samples in online buffer
         """      
         pass
 
