@@ -13,7 +13,10 @@ import IPython
 # import imgaug as ia
 # from imgaug import augmenters as iaa
 
+
+
 class handler(object):
+
     def __init__(self, train_data_directory, validation_data_directory, scenario_length = 1, batch_size = 32):
         self.data_directory = train_data_directory
         self.train_data_directory = train_data_directory
@@ -26,7 +29,6 @@ class handler(object):
         self.current_folder_generator = 0
         self.validation_current_folder_generator = 0
         self.check_data()
-        self.action_dict = self.get_comb(config.STEER_VALUES, config.THROTTLE_BRAKE_VALUES)
 
     def check_data(self):
         '''
@@ -50,136 +52,6 @@ class handler(object):
         self.image_dimension = image_shape[1:]
         #print("All Images Must Have The Same Length of: {}".format(self.image_dimension))
         #print("WARNING: All Files Have {} images".format(images_per_H5_file))
-
-    
-    
-    # def fetch_minibatch(self, number_minibatches ,number_of_files):
-    #     '''
-    #     branche_name is one of {'Left', 'Right', ...}
-    #     '''
-        
-    #     size_minibatches_per_epoch = self.batch_size*number_minibatches
-    #     if self.scenario_length == 1:
-    #         target_size = (4*size_minibatches_per_epoch,) +  self.image_dimension
-    #     else:
-            
-    #         target_size = (4*size_minibatches_per_epoch,) + (self.scenario_length,) +   self.image_dimension 
-    #     #print(target_size)
-    #     images = np.zeros(target_size)
-    #     # print("Images shape is:", images.shape)
-    #     velocity = np.zeros((4*size_minibatches_per_epoch,))
-    #     mask_steer = np.ones((self.batch_size,))*(-2)
-    #     mask_throttle = np.ones((self.batch_size,))*(-2)
-    #     mask_brake = np.ones((self.batch_size,))*(-2)
-    #     output_labels = np.zeros((4*size_minibatches_per_epoch, 13)) # 13 = 4*3 +1 = 13 output
-    #     branches = ['left', 'right', 'follow', 'straight']
-
-    #     while True:
-    #         for m, branche_name in enumerate(branches):
-    #             for k in range(0, number_minibatches):
-
-
-    #                     filename= self.train_data_directory + branche_name +'/data_' + str(self.current_folder_generator+k)+ '.h5'
-    #                     #print(filename)
-    #                     with h5py.File(filename, 'r') as hdf:
-    #                             imgs = hdf.get('rgb')
-    #                             imgs = np.array(imgs[:,:,:], dtype = np.uint8)
-    #                             #print(imgs.shape)
-    #                             targets = hdf.get('targets')
-    #                             targets = np.array(targets)
-    #                             # print(imgs.shape)
-    #                             # print(targets.shape)
-                                
-    #                     #Preparing files and putting masks 
-    #                     images[m*size_minibatches_per_epoch+k*self.batch_size:m*size_minibatches_per_epoch+k*self.batch_size+self.batch_size]=imgs/255.0
-    #                     velocity[m*size_minibatches_per_epoch+k*self.batch_size:m*size_minibatches_per_epoch+k*self.batch_size+self.batch_size] = targets[:,10]
-    #                     # print("Shaping is:", output_labels[m*size_minibatches_per_epoch+i*self.batch_size:m*size_minibatches_per_epoch+i*self.batch_size+self.batch_size,:].shape)
-    #                     output_labels[m*size_minibatches_per_epoch+k*self.batch_size:m*size_minibatches_per_epoch+k*self.batch_size+self.batch_size,12] = targets[:,10]
-    #                     # velocity[i*self.batch_size:i*self.batch_size+self.batch_size]=targets[:,10]
-                        
-
-    #                     if branche_name== 'left':
-    #                         # print("In Left...")
-    #                         # print(output_labels[m*size_minibatches_per_epoch+i*self.batch_size:m*size_minibatches_per_epoch+i*self.batch_size+self.batch_size,3].shape)
-    #                         # print(mask_steer.shape)
-    #                         # print(mask_throttle.shape)
-    #                         # print(mask_brake.shape)
-    #                         #self.get_left_output_labels(m,size_minibatches_per_epoch,k)
-    #                         output_labels[m*size_minibatches_per_epoch+k*self.batch_size:m*size_minibatches_per_epoch+k*self.batch_size+self.batch_size,0] = targets[:,0]
-    #                         output_labels[m*size_minibatches_per_epoch+k*self.batch_size:m*size_minibatches_per_epoch+k*self.batch_size+self.batch_size,1] = targets[:,1]
-    #                         output_labels[m*size_minibatches_per_epoch+k*self.batch_size:m*size_minibatches_per_epoch+k*self.batch_size+self.batch_size,2] = targets[:,2]
-    #                         output_labels[m*size_minibatches_per_epoch+k*self.batch_size:m*size_minibatches_per_epoch+k*self.batch_size+self.batch_size,3] = mask_steer
-    #                         output_labels[m*size_minibatches_per_epoch+k*self.batch_size:m*size_minibatches_per_epoch+k*self.batch_size+self.batch_size,4] = mask_throttle
-    #                         output_labels[m*size_minibatches_per_epoch+k*self.batch_size:m*size_minibatches_per_epoch+k*self.batch_size+self.batch_size,5] = mask_brake
-    #                         output_labels[m*size_minibatches_per_epoch+k*self.batch_size:m*size_minibatches_per_epoch+k*self.batch_size+self.batch_size,6] = mask_steer
-    #                         output_labels[m*size_minibatches_per_epoch+k*self.batch_size:m*size_minibatches_per_epoch+k*self.batch_size+self.batch_size,7] = mask_throttle
-    #                         output_labels[m*size_minibatches_per_epoch+k*self.batch_size:m*size_minibatches_per_epoch+k*self.batch_size+self.batch_size,8] = mask_brake
-    #                         output_labels[m*size_minibatches_per_epoch+k*self.batch_size:m*size_minibatches_per_epoch+k*self.batch_size+self.batch_size,9] = mask_steer
-    #                         output_labels[m*size_minibatches_per_epoch+k*self.batch_size:m*size_minibatches_per_epoch+k*self.batch_size+self.batch_size,10] = mask_throttle
-    #                         output_labels[m*size_minibatches_per_epoch+k*self.batch_size:m*size_minibatches_per_epoch+k*self.batch_size+self.batch_size,11] = mask_brake
-    #                         # steering_vec[i*self.batch_size:i*self.batch_size+self.batch_size]=targets[:,0]
-    #                         # throttle_vec[i*self.batch_size:i*self.batch_size+self.batch_size]=targets[:,1]
-    #                         # brake_vec[i*self.batch_size:i*self.batch_size+self.batch_size]=targets[:,2]
-
-    #                     elif branche_name== 'right':
-    #                         #self.get_right_output_labels()
-    #                         output_labels[m*size_minibatches_per_epoch+k*self.batch_size:m*size_minibatches_per_epoch+k*self.batch_size+self.batch_size,0] = mask_steer
-    #                         output_labels[m*size_minibatches_per_epoch+k*self.batch_size:m*size_minibatches_per_epoch+k*self.batch_size+self.batch_size,1] = mask_throttle
-    #                         output_labels[m*size_minibatches_per_epoch+k*self.batch_size:m*size_minibatches_per_epoch+k*self.batch_size+self.batch_size,2] = mask_brake
-    #                         output_labels[m*size_minibatches_per_epoch+k*self.batch_size:m*size_minibatches_per_epoch+k*self.batch_size+self.batch_size,3] = targets[:,0]
-    #                         output_labels[m*size_minibatches_per_epoch+k*self.batch_size:m*size_minibatches_per_epoch+k*self.batch_size+self.batch_size,4] = targets[:,1]
-    #                         output_labels[m*size_minibatches_per_epoch+k*self.batch_size:m*size_minibatches_per_epoch+k*self.batch_size+self.batch_size,5] = targets[:,2]
-    #                         output_labels[m*size_minibatches_per_epoch+k*self.batch_size:m*size_minibatches_per_epoch+k*self.batch_size+self.batch_size,6] = mask_steer
-    #                         output_labels[m*size_minibatches_per_epoch+k*self.batch_size:m*size_minibatches_per_epoch+k*self.batch_size+self.batch_size,7] = mask_throttle
-    #                         output_labels[m*size_minibatches_per_epoch+k*self.batch_size:m*size_minibatches_per_epoch+k*self.batch_size+self.batch_size,8] = mask_brake
-    #                         output_labels[m*size_minibatches_per_epoch+k*self.batch_size:m*size_minibatches_per_epoch+k*self.batch_size+self.batch_size,9] = mask_steer
-    #                         output_labels[m*size_minibatches_per_epoch+k*self.batch_size:m*size_minibatches_per_epoch+k*self.batch_size+self.batch_size,10] = mask_throttle
-    #                         output_labels[m*size_minibatches_per_epoch+k*self.batch_size:m*size_minibatches_per_epoch+k*self.batch_size+self.batch_size,11] = mask_brake
-    #                         # steering_vec[i*self.batch_size:i*self.batch_size+self.batch_size]=targets[:,0]
-    #                         # throttle_vec[i*self.batch_size:i*self.batch_size+self.batch_size]=targets[:,1]
-    #                         # brake_vec[i*self.batch_size:i*self.batch_size+self.batch_size]=targets[:,2]
-    #                     elif branche_name== 'follow':
-    #                         #self.get_follow_left_output_labels()
-    #                         output_labels[m*size_minibatches_per_epoch+k*self.batch_size:m*size_minibatches_per_epoch+k*self.batch_size+self.batch_size,0] = mask_steer
-    #                         output_labels[m*size_minibatches_per_epoch+k*self.batch_size:m*size_minibatches_per_epoch+k*self.batch_size+self.batch_size,1] = mask_throttle
-    #                         output_labels[m*size_minibatches_per_epoch+k*self.batch_size:m*size_minibatches_per_epoch+k*self.batch_size+self.batch_size,2] = mask_brake
-    #                         output_labels[m*size_minibatches_per_epoch+k*self.batch_size:m*size_minibatches_per_epoch+k*self.batch_size+self.batch_size,3] = mask_steer
-    #                         output_labels[m*size_minibatches_per_epoch+k*self.batch_size:m*size_minibatches_per_epoch+k*self.batch_size+self.batch_size,4] = mask_throttle
-    #                         output_labels[m*size_minibatches_per_epoch+k*self.batch_size:m*size_minibatches_per_epoch+k*self.batch_size+self.batch_size,5] = mask_brake
-    #                         output_labels[m*size_minibatches_per_epoch+k*self.batch_size:m*size_minibatches_per_epoch+k*self.batch_size+self.batch_size,6] = targets[:,0]
-    #                         output_labels[m*size_minibatches_per_epoch+k*self.batch_size:m*size_minibatches_per_epoch+k*self.batch_size+self.batch_size,7] = targets[:,1]
-    #                         output_labels[m*size_minibatches_per_epoch+k*self.batch_size:m*size_minibatches_per_epoch+k*self.batch_size+self.batch_size,8] = targets[:,2]
-    #                         output_labels[m*size_minibatches_per_epoch+k*self.batch_size:m*size_minibatches_per_epoch+k*self.batch_size+self.batch_size,9] = mask_steer
-    #                         output_labels[m*size_minibatches_per_epoch+k*self.batch_size:m*size_minibatches_per_epoch+k*self.batch_size+self.batch_size,10] = mask_throttle
-    #                         output_labels[m*size_minibatches_per_epoch+k*self.batch_size:m*size_minibatches_per_epoch+k*self.batch_size+self.batch_size,11] = mask_brake
-    #                         # steering_vec[i*self.batch_size:i*self.batch_size+self.batch_size]=targets[:,0]
-    #                         # throttle_vec[i*self.batch_size:i*self.batch_size+self.batch_size]=targets[:,1]
-    #                         # brake_vec[i*self.batch_size:i*self.batch_size+self.batch_size]=targets[:,2]
-    #                     elif branche_name== 'straight':
-    #                         #self.get_straight_output_labels()
-    #                         output_labels[m*size_minibatches_per_epoch+k*self.batch_size:m*size_minibatches_per_epoch+k*self.batch_size+self.batch_size,0] = mask_steer
-    #                         output_labels[m*size_minibatches_per_epoch+k*self.batch_size:m*size_minibatches_per_epoch+k*self.batch_size+self.batch_size,1] = mask_throttle
-    #                         output_labels[m*size_minibatches_per_epoch+k*self.batch_size:m*size_minibatches_per_epoch+k*self.batch_size+self.batch_size,2] = mask_brake
-    #                         output_labels[m*size_minibatches_per_epoch+k*self.batch_size:m*size_minibatches_per_epoch+k*self.batch_size+self.batch_size,3] = mask_steer
-    #                         output_labels[m*size_minibatches_per_epoch+k*self.batch_size:m*size_minibatches_per_epoch+k*self.batch_size+self.batch_size,4] = mask_throttle
-    #                         output_labels[m*size_minibatches_per_epoch+k*self.batch_size:m*size_minibatches_per_epoch+k*self.batch_size+self.batch_size,5] = mask_brake
-    #                         output_labels[m*size_minibatches_per_epoch+k*self.batch_size:m*size_minibatches_per_epoch+k*self.batch_size+self.batch_size,6] = mask_steer
-    #                         output_labels[m*size_minibatches_per_epoch+k*self.batch_size:m*size_minibatches_per_epoch+k*self.batch_size+self.batch_size,7] = mask_throttle
-    #                         output_labels[m*size_minibatches_per_epoch+k*self.batch_size:m*size_minibatches_per_epoch+k*self.batch_size+self.batch_size,8] = mask_brake
-    #                         output_labels[m*size_minibatches_per_epoch+k*self.batch_size:m*size_minibatches_per_epoch+k*self.batch_size+self.batch_size,9] = targets[:,0]
-    #                         output_labels[m*size_minibatches_per_epoch+k*self.batch_size:m*size_minibatches_per_epoch+k*self.batch_size+self.batch_size,10] = targets[:,1]
-    #                         output_labels[m*size_minibatches_per_epoch+k*self.batch_size:m*size_minibatches_per_epoch+k*self.batch_size+self.batch_size,11] = targets[:,2]
-    #                         # steering_vec[i*self.batch_size:i*self.batch_size+self.batch_size]=targets[:,0]
-    #                         # throttle_vec[i*self.batch_size:i*self.batch_size+self.batch_size]=targets[:,1]
-    #                         # brake_vec[i*self.batch_size:i*self.batch_size+self.batch_size]=targets[:,2]
-
-    #         self.generator_counter += number_minibatches
-    #         self.current_folder_generator = self.current_folder_generator + number_minibatches
-    #         #print("train counter ",self.current_folder_generator,end=" ")
-    #         if self.current_folder_generator == number_of_files:
-    #             self.current_folder_generator = 0
-
-    #         yield [images, velocity], [output_labels[:,0], output_labels[:,1], output_labels[:,2], output_labels[:,3], output_labels[:,4], output_labels[:,5], output_labels[:,6], output_labels[:,7], output_labels[:,8], output_labels[:,9], output_labels[:,10], output_labels[:,11], output_labels[:,12]]
 
 
     def fetch_minibatch(self,branch_name,number_of_files):
@@ -240,100 +112,6 @@ class handler(object):
         #print(action)
 
         return images , next_images , action , next_action ,velocity , next_velocity
-        # if branche_name == 'left':
-        # 	action[4:]
-                    
-        #             #Preparing files and putting masks 
-        #             images[m*size_minibatches_per_epoch+k*self.batch_size:m*size_minibatches_per_epoch+k*self.batch_size+self.batch_size]=imgs/255.0
-        #             velocity[m*size_minibatches_per_epoch+k*self.batch_size:m*size_minibatches_per_epoch+k*self.batch_size+self.batch_size] = targets[:,10]
-        #             # print("Shaping is:", output_labels[m*size_minibatches_per_epoch+i*self.batch_size:m*size_minibatches_per_epoch+i*self.batch_size+self.batch_size,:].shape)
-        #             output_labels[m*size_minibatches_per_epoch+k*self.batch_size:m*size_minibatches_per_epoch+k*self.batch_size+self.batch_size,12] = targets[:,10]
-        #             # velocity[i*self.batch_size:i*self.batch_size+self.batch_size]=targets[:,10]
-                    
-
-        #             if branche_name== 'left':
-        #                 # print("In Left...")
-        #                 # print(output_labels[m*size_minibatches_per_epoch+i*self.batch_size:m*size_minibatches_per_epoch+i*self.batch_size+self.batch_size,3].shape)
-        #                 # print(mask_steer.shape)
-        #                 # print(mask_throttle.shape)
-        #                 # print(mask_brake.shape)
-        #                 #self.get_left_output_labels(m,size_minibatches_per_epoch,k)
-        #                 output_labels[m*size_minibatches_per_epoch+k*self.batch_size:m*size_minibatches_per_epoch+k*self.batch_size+self.batch_size,0] = targets[:,0]
-        #                 output_labels[m*size_minibatches_per_epoch+k*self.batch_size:m*size_minibatches_per_epoch+k*self.batch_size+self.batch_size,1] = targets[:,1]
-        #                 output_labels[m*size_minibatches_per_epoch+k*self.batch_size:m*size_minibatches_per_epoch+k*self.batch_size+self.batch_size,2] = targets[:,2]
-        #                 output_labels[m*size_minibatches_per_epoch+k*self.batch_size:m*size_minibatches_per_epoch+k*self.batch_size+self.batch_size,3] = mask_steer
-        #                 output_labels[m*size_minibatches_per_epoch+k*self.batch_size:m*size_minibatches_per_epoch+k*self.batch_size+self.batch_size,4] = mask_throttle
-        #                 output_labels[m*size_minibatches_per_epoch+k*self.batch_size:m*size_minibatches_per_epoch+k*self.batch_size+self.batch_size,5] = mask_brake
-        #                 output_labels[m*size_minibatches_per_epoch+k*self.batch_size:m*size_minibatches_per_epoch+k*self.batch_size+self.batch_size,6] = mask_steer
-        #                 output_labels[m*size_minibatches_per_epoch+k*self.batch_size:m*size_minibatches_per_epoch+k*self.batch_size+self.batch_size,7] = mask_throttle
-        #                 output_labels[m*size_minibatches_per_epoch+k*self.batch_size:m*size_minibatches_per_epoch+k*self.batch_size+self.batch_size,8] = mask_brake
-        #                 output_labels[m*size_minibatches_per_epoch+k*self.batch_size:m*size_minibatches_per_epoch+k*self.batch_size+self.batch_size,9] = mask_steer
-        #                 output_labels[m*size_minibatches_per_epoch+k*self.batch_size:m*size_minibatches_per_epoch+k*self.batch_size+self.batch_size,10] = mask_throttle
-        #                 output_labels[m*size_minibatches_per_epoch+k*self.batch_size:m*size_minibatches_per_epoch+k*self.batch_size+self.batch_size,11] = mask_brake
-        #                 # steering_vec[i*self.batch_size:i*self.batch_size+self.batch_size]=targets[:,0]
-        #                 # throttle_vec[i*self.batch_size:i*self.batch_size+self.batch_size]=targets[:,1]
-        #                 # brake_vec[i*self.batch_size:i*self.batch_size+self.batch_size]=targets[:,2]
-
-        #             elif branche_name== 'right':
-        #                 #self.get_right_output_labels()
-        #                 output_labels[m*size_minibatches_per_epoch+k*self.batch_size:m*size_minibatches_per_epoch+k*self.batch_size+self.batch_size,0] = mask_steer
-        #                 output_labels[m*size_minibatches_per_epoch+k*self.batch_size:m*size_minibatches_per_epoch+k*self.batch_size+self.batch_size,1] = mask_throttle
-        #                 output_labels[m*size_minibatches_per_epoch+k*self.batch_size:m*size_minibatches_per_epoch+k*self.batch_size+self.batch_size,2] = mask_brake
-        #                 output_labels[m*size_minibatches_per_epoch+k*self.batch_size:m*size_minibatches_per_epoch+k*self.batch_size+self.batch_size,3] = targets[:,0]
-        #                 output_labels[m*size_minibatches_per_epoch+k*self.batch_size:m*size_minibatches_per_epoch+k*self.batch_size+self.batch_size,4] = targets[:,1]
-        #                 output_labels[m*size_minibatches_per_epoch+k*self.batch_size:m*size_minibatches_per_epoch+k*self.batch_size+self.batch_size,5] = targets[:,2]
-        #                 output_labels[m*size_minibatches_per_epoch+k*self.batch_size:m*size_minibatches_per_epoch+k*self.batch_size+self.batch_size,6] = mask_steer
-        #                 output_labels[m*size_minibatches_per_epoch+k*self.batch_size:m*size_minibatches_per_epoch+k*self.batch_size+self.batch_size,7] = mask_throttle
-        #                 output_labels[m*size_minibatches_per_epoch+k*self.batch_size:m*size_minibatches_per_epoch+k*self.batch_size+self.batch_size,8] = mask_brake
-        #                 output_labels[m*size_minibatches_per_epoch+k*self.batch_size:m*size_minibatches_per_epoch+k*self.batch_size+self.batch_size,9] = mask_steer
-        #                 output_labels[m*size_minibatches_per_epoch+k*self.batch_size:m*size_minibatches_per_epoch+k*self.batch_size+self.batch_size,10] = mask_throttle
-        #                 output_labels[m*size_minibatches_per_epoch+k*self.batch_size:m*size_minibatches_per_epoch+k*self.batch_size+self.batch_size,11] = mask_brake
-        #                 # steering_vec[i*self.batch_size:i*self.batch_size+self.batch_size]=targets[:,0]
-        #                 # throttle_vec[i*self.batch_size:i*self.batch_size+self.batch_size]=targets[:,1]
-        #                 # brake_vec[i*self.batch_size:i*self.batch_size+self.batch_size]=targets[:,2]
-        #             elif branche_name== 'follow':
-        #                 #self.get_follow_left_output_labels()
-        #                 output_labels[m*size_minibatches_per_epoch+k*self.batch_size:m*size_minibatches_per_epoch+k*self.batch_size+self.batch_size,0] = mask_steer
-        #                 output_labels[m*size_minibatches_per_epoch+k*self.batch_size:m*size_minibatches_per_epoch+k*self.batch_size+self.batch_size,1] = mask_throttle
-        #                 output_labels[m*size_minibatches_per_epoch+k*self.batch_size:m*size_minibatches_per_epoch+k*self.batch_size+self.batch_size,2] = mask_brake
-        #                 output_labels[m*size_minibatches_per_epoch+k*self.batch_size:m*size_minibatches_per_epoch+k*self.batch_size+self.batch_size,3] = mask_steer
-        #                 output_labels[m*size_minibatches_per_epoch+k*self.batch_size:m*size_minibatches_per_epoch+k*self.batch_size+self.batch_size,4] = mask_throttle
-        #                 output_labels[m*size_minibatches_per_epoch+k*self.batch_size:m*size_minibatches_per_epoch+k*self.batch_size+self.batch_size,5] = mask_brake
-        #                 output_labels[m*size_minibatches_per_epoch+k*self.batch_size:m*size_minibatches_per_epoch+k*self.batch_size+self.batch_size,6] = targets[:,0]
-        #                 output_labels[m*size_minibatches_per_epoch+k*self.batch_size:m*size_minibatches_per_epoch+k*self.batch_size+self.batch_size,7] = targets[:,1]
-        #                 output_labels[m*size_minibatches_per_epoch+k*self.batch_size:m*size_minibatches_per_epoch+k*self.batch_size+self.batch_size,8] = targets[:,2]
-        #                 output_labels[m*size_minibatches_per_epoch+k*self.batch_size:m*size_minibatches_per_epoch+k*self.batch_size+self.batch_size,9] = mask_steer
-        #                 output_labels[m*size_minibatches_per_epoch+k*self.batch_size:m*size_minibatches_per_epoch+k*self.batch_size+self.batch_size,10] = mask_throttle
-        #                 output_labels[m*size_minibatches_per_epoch+k*self.batch_size:m*size_minibatches_per_epoch+k*self.batch_size+self.batch_size,11] = mask_brake
-        #                 # steering_vec[i*self.batch_size:i*self.batch_size+self.batch_size]=targets[:,0]
-        #                 # throttle_vec[i*self.batch_size:i*self.batch_size+self.batch_size]=targets[:,1]
-        #                 # brake_vec[i*self.batch_size:i*self.batch_size+self.batch_size]=targets[:,2]
-        #             elif branche_name== 'straight':
-        #                 #self.get_straight_output_labels()
-        #                 output_labels[m*size_minibatches_per_epoch+k*self.batch_size:m*size_minibatches_per_epoch+k*self.batch_size+self.batch_size,0] = mask_steer
-        #                 output_labels[m*size_minibatches_per_epoch+k*self.batch_size:m*size_minibatches_per_epoch+k*self.batch_size+self.batch_size,1] = mask_throttle
-        #                 output_labels[m*size_minibatches_per_epoch+k*self.batch_size:m*size_minibatches_per_epoch+k*self.batch_size+self.batch_size,2] = mask_brake
-        #                 output_labels[m*size_minibatches_per_epoch+k*self.batch_size:m*size_minibatches_per_epoch+k*self.batch_size+self.batch_size,3] = mask_steer
-        #                 output_labels[m*size_minibatches_per_epoch+k*self.batch_size:m*size_minibatches_per_epoch+k*self.batch_size+self.batch_size,4] = mask_throttle
-        #                 output_labels[m*size_minibatches_per_epoch+k*self.batch_size:m*size_minibatches_per_epoch+k*self.batch_size+self.batch_size,5] = mask_brake
-        #                 output_labels[m*size_minibatches_per_epoch+k*self.batch_size:m*size_minibatches_per_epoch+k*self.batch_size+self.batch_size,6] = mask_steer
-        #                 output_labels[m*size_minibatches_per_epoch+k*self.batch_size:m*size_minibatches_per_epoch+k*self.batch_size+self.batch_size,7] = mask_throttle
-        #                 output_labels[m*size_minibatches_per_epoch+k*self.batch_size:m*size_minibatches_per_epoch+k*self.batch_size+self.batch_size,8] = mask_brake
-        #                 output_labels[m*size_minibatches_per_epoch+k*self.batch_size:m*size_minibatches_per_epoch+k*self.batch_size+self.batch_size,9] = targets[:,0]
-        #                 output_labels[m*size_minibatches_per_epoch+k*self.batch_size:m*size_minibatches_per_epoch+k*self.batch_size+self.batch_size,10] = targets[:,1]
-        #                 output_labels[m*size_minibatches_per_epoch+k*self.batch_size:m*size_minibatches_per_epoch+k*self.batch_size+self.batch_size,11] = targets[:,2]
-        #                 # steering_vec[i*self.batch_size:i*self.batch_size+self.batch_size]=targets[:,0]
-        #                 # throttle_vec[i*self.batch_size:i*self.batch_size+self.batch_size]=targets[:,1]
-        #                 # brake_vec[i*self.batch_size:i*self.batch_size+self.batch_size]=targets[:,2]
-
-        # self.generator_counter += number_minibatches
-        # self.current_folder_generator = self.current_folder_generator + number_minibatches
-        # #print("train counter ",self.current_folder_generator,end=" ")
-        # if self.current_folder_generator == number_of_files:
-        #     self.current_folder_generator = 0
-
-        # return [images, velocity], [output_labels[:,0], output_labels[:,1], output_labels[:,2], output_labels[:,3], output_labels[:,4], output_labels[:,5], output_labels[:,6], output_labels[:,7], output_labels[:,8], output_labels[:,9], output_labels[:,10], output_labels[:,11], output_labels[:,12]]
-
 
 
     def imshow(self,img):
@@ -341,14 +119,15 @@ class handler(object):
         i = IPython.display.Image(data=ret)
         IPython.display.display(i)
 
-    def fetch_single_image(self, image_number):
+    @staticmethod
+    def fetch_single_image(directory, branch_name, observation_name):
         '''
             This Fucntion fetchs data for imitation learning
             Input: 
             Output:
         '''
 
-        filename= self.train_data_directory + '/follow' +'/data_' + str(image_number)+ '.h5'
+        filename= directory + '/' + branch_name + '/' + observation_name 
         with h5py.File(filename, 'r') as hdf:
                 imgs = hdf.get('rgb')
                 imgs = np.array(imgs[:,:,:], dtype = np.uint8)
@@ -358,28 +137,22 @@ class handler(object):
                 steer = targets[:,0][0]
                 throttle = targets[:,1][0]
                 brake = targets[:,2][0]
-                print(self.map_outputs(throttle = throttle, steer = steer , brake = brake , one_output_for_throttle_brake = True))
+                velocity = targets[:,10][0]
+                reward = 0
+                #print(self.map_outputs(throttle = throttle, steer = steer , brake = brake , one_output_for_throttle_brake = True))
                 # self.imshow(imgs[0])
-
-        pass
+                action_number = handler.map_outputs(throttle = throttle, steer = steer , brake = brake , one_output_for_throttle_brake = True)
+        
+        return [imgs , velocity] , action_number , reward
 
     def fetch_validation():
         '''
         '''
         pass
 
-    def get_comb(self, steer_range, throttle_range):
-        c = {}
-        action_number = 0
-        for i in steer_range:
-            for j in throttle_range:
-                key = str(np.round(i,1)) + str(np.round(j,1))
-                c[key] = action_number
-                action_number += 1  
-        return c
 
-
-    def map_outputs(self, throttle, steer, brake = 0, disceretization_bins = 20, one_output_for_throttle_brake = True):
+    @staticmethod
+    def map_outputs( throttle, steer, brake = 0, disceretization_bins = 20, one_output_for_throttle_brake = True):
         '''
             This Fucntion Maps continous outputs from Demonstration data to disceret values
             Input : 
@@ -388,10 +161,14 @@ class handler(object):
         # return action_number
         diff = throttle - brake
         steer_action = np.float(np.round(steer,1))
-        print("quantized steer ",steer_action)
+        #print("quantized steer ",steer_action)
         throttle_brake_action = np.float(np.round(diff,1))
-        print("quantized throttle_brake ",throttle_brake_action)
-        action_num = self.action_dict[str(steer_action)+str(throttle_brake_action)]
+        if abs(throttle_brake_action) == 0:
+            throttle_brake_action = 0.0
+        if abs(steer_action) == 0:
+            steer_action = 0.0
+        #print("quantized throttle_brake ",throttle_brake_action)
+        action_num = config.ACTION_DICT[str(10*steer_action) + '_' + str(10*throttle_brake_action)]
         return action_num
 
 

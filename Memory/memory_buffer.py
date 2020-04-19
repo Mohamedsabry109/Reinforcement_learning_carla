@@ -28,7 +28,7 @@ class MemoryBuffer(object):
         self.with_per = with_per
         self.buffer_size = buffer_size
 
-    def memorize(self, state, action, reward, done, new_state, error=None, path = None):
+    def memorize(self, state, action, reward, done, new_state, error=None):
         """ Save an experience to memory, optionally with its TD-Error
         """
 
@@ -49,7 +49,7 @@ class MemoryBuffer(object):
     def priority(self, error):
         """ Compute an experience priority, as per Schaul et al.
         """
-        return (error + self.epsilon) ** self.alpha
+        return (error + self.epsilon) ** self.alpha 
 
     def size(self):
         """ Current Buffer Occupation
@@ -107,11 +107,13 @@ class OnlineMemoryBuffer(MemoryBuffer):
     """ Memory Buffer Helper class for Experience Replay
     using a double-ended queue or a Sum Tree (for PER)
     """
-    def __init__(self, buffer_size, with_per = False, name = None, directory = None):
-        super().__init__(buffer_size, with_per, name, directory)
+    def __init__(self,  buffer_size, name, train_data_directory, validation_data_directory, with_per = False):
+        super().__init__(buffer_size, with_per, name, train_data_directory)
+        print("Checking the data for initiallizing an Online buffer of the ", self.name, " branch")
+        
         pass
     
-    def reload(self,buffer):
+    def reload(self,offline_buffer):
 
         """
             Given an offline buffer, sample samples with online buffer size
@@ -125,17 +127,16 @@ class OnlineMemoryBuffer(MemoryBuffer):
         Returns:
 
         """
-        offline_buffer = buffer
+        #loading online buffer from offline buffer by sampling (online_buffer.buffer_size) samples 
         names, idxs = offline_buffer.sample_batch(self.buffer_size)
         self.offline_idxs = idxs
+        state , action , reward = data_handler.handler.fetch_single_image(directory = self.directory, branch_name = self.name, observation_name = names[0])
         #loop on names and load in the online buffer
-        for file_name in names:
-            #load file and get data
-            self.buffer.memorize()
-
-        
-
-        pass
+        for i in range(len(names)-1):
+            next_state , next_action , next_reward = data_handler.handler.fetch_single_image(directory = self.directory, branch_name = self.name, observation_name = names[i+1])
+            done = 0
+            self.memorize(state, action, reward, done, next_state, error=[1])
+            state , action , reward = next_state , next_action , next_reward
 
     def change_priorities(idxs, errors):
 
@@ -147,19 +148,8 @@ class OnlineMemoryBuffer(MemoryBuffer):
         idxs of samples in online buffer 
         errors of samples in online buffer
         """      
-        pass
-
-    def update_offline_priorities(idxs, errors):
-
-        """
-            change priorities of online buffer items
-            it should iteratively calls update
-
-        Args:
-        idxs of samples in offline buffer 
-        errors of samples in online buffer
-        """      
-        pass
+        for i in range(len(idxs)):
+            self.update(idxs[i] , errors[i])
 
 
 class OfflineMemoryBuffer(MemoryBuffer):
@@ -172,15 +162,8 @@ class OfflineMemoryBuffer(MemoryBuffer):
         self.buffer_pointer = 0
         print("Checking the data for initiallizing an offline buffer of the ", self.name, " branch")
         self.data_handler = data_handler.handler(train_data_directory = train_data_directory, validation_data_directory = validation_data_directory)
-        print("tree is ",self.buffer.tree)
-
+        #print("tree is ",self.buffer.tree)
         self.initiallize_buffer()
-        # print("buffer ",self.buffer.data[0])
-        # print("buffer size ", self.buffer.total())
-        # print("tree is ",self.buffer.tree)
-        #self.data_handler.fetch_minibatch(name,100)
-
-        pass
 
     def initiallize_buffer(self):
         """
@@ -190,14 +173,14 @@ class OfflineMemoryBuffer(MemoryBuffer):
         """
         assert os.path.isdir(self.directory)
         files_list = sorted(os.listdir(self.directory + '/' + self.name + '/'))
-        print("length of files ",len(files_list))
-        assert files_list != []
+        #print("length of files ",len(files_list))
         self.files_counter = 0
-        for file_name in files_list:         
-            self.memorize(name = file_name, error = 0)
-            self.files_counter += 1
+        if files_list != []:     
+            for file_name in files_list:
+                self.memorize(name = file_name, error = 1)
+                self.files_counter += 1
+            self.files_tracker = file_name
 
-        #self.files_tracker = file_name
 
     def change_priorities(self,idxs,errors):
         """
@@ -212,7 +195,6 @@ class OfflineMemoryBuffer(MemoryBuffer):
 
     def memorize(self,name= None, error=None):
         """
-<<<<<<< HEAD
         Memorize data in the buffer.
 
         Args:
@@ -220,10 +202,7 @@ class OfflineMemoryBuffer(MemoryBuffer):
             error: int
         """
 
-=======
-        # data = (name, error)
->>>>>>> 28f4ac46783eb4b550d90adc152f662790a55df0
-        data = name
+        data = (error, name)
         if(self.with_per):
             #priority = self.priority(error[0])
             priority = self.priority(error)
@@ -248,10 +227,12 @@ class OfflineMemoryBuffer(MemoryBuffer):
         # Sample using prorities
         if(self.with_per):
             T = self.buffer.total() // batch_size
+            #print("T is ",T)
             for i in range(batch_size):
                 a, b = T * i, T * (i + 1)
                 s = random.uniform(a, b)
                 idx, error, data = self.buffer.get(s)
+                #print("sampled data ", s, " ",data, end=" ")
                 batch.append((*data, idx))
 
             idx = np.array([i[1] for i in batch])
@@ -266,7 +247,7 @@ class OfflineMemoryBuffer(MemoryBuffer):
             batch = random.sample(self.buffer, batch_size)
 
         # Return a batch of experience
-        names_batch = np.array([i[0] for i in batch])
+        names_batch = np.array([i[1] for i in batch])
 
         return names_batch, idx
 
@@ -299,8 +280,11 @@ class OfflineMemoryBuffer(MemoryBuffer):
             This function take the observations of some episode and store them on the disk
             and then updating offline buffer with these new data and their priorites
             should call change priorities, keep track of names of the data
+            Q: what if we wants to reintialize the code ?? how could we keep track of files, should we change their names
         Args:
-            batch: {state:,action,errors} 
+            [{'state':,'high_level_command','measurments'}]
         """
+        for i in range(len(batch)):
+            pass
 
-        pass
+        
