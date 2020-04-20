@@ -160,6 +160,7 @@ class DDQN():
             targets = np.array(targets)
 
             self.image_dimension = image_shape[-3:]
+            print("Input to model shape is ",self.image_dimension)
             self.scenario_length = image_shape[0]
         
             # print("INPUT SHAPE IS:", self.image_dimension)
@@ -225,7 +226,7 @@ class DDQN():
     
     def get_branched_network(self,input_shape):
         image = Input(input_shape,name='image_input')
-        #print(image)
+        print(image)
         layer = self.conv_block(image,5 , 2, 32, padding ='valid', drop_out = 0.2, name ='CONV1')       
         #print(layer)
         layer = self.conv_block(layer,3 , 1, 32, padding ='valid', drop_out = 0.2, name ='CONV2')
@@ -312,20 +313,19 @@ class DDQN():
         O/P : rl loss
         """
         gamma = 0.99
-        batch_size = 32
-        q_s_a_temp = q_s_a
+        batch_size = 4
+        q_s_a_temp = np.zeros((len(q_s_a),np.array(q_s_a[0]).shape[0],np.array(q_s_a[0]).shape[1]))
+        #q_s_a_temp = q_s_a
         for i in range(4):
             for j in range(batch_size):
                 q_next_s = np.max(q_next_s_next_a[i][i*batch_size+j])
                 action_token = int(np.argmax(q_s_a_temp[i][i*batch_size+j]))
                 #print(demonestration_action)
                 #print(action_token)
-                q_s_a_temp[i][i*batch_size+j][action_token] = (r_s_a + q_next_s - q_s_a_temp[i][i*batch_size+j][action_token]) 
+                q_s_a_temp[i][i*batch_size+j][action_token] = (r_s_a[batch_size*i+j] + gamma*q_next_s - q_s_a[i][i*batch_size+j][action_token])**2 
 
         return q_s_a_temp
-        
-        
-        pass
+                
     def supervised_loss(self,q_s_a,ae):
         """
         #max of current ation value + 0.8 - action value of the right action from demonestrations
@@ -338,16 +338,16 @@ class DDQN():
 
         batch_size = 4
 
-        q_s_a_temp = q_s_a
+        q_s_a_temp = np.zeros((len(q_s_a),np.array(q_s_a[0]).shape[0],np.array(q_s_a[0]).shape[1]))
 
+        
         for i in range(4):
             for j in range(batch_size):
                 demonestration_action = int(ae[i*batch_size+j]) # 0 -> 441
                 action_token = int(np.argmax(q_s_a[i][i*batch_size+j]))
-                print(demonestration_action)
-                print(action_token)
-                q_s_a_temp[i][i*batch_size+j][action_token] += (l_ae_a - q_s_a[i][i*batch_size+j][demonestration_action]) 
-
+                # print(demonestration_action)
+                # print(action_token)
+                q_s_a_temp[i][i*batch_size+j][action_token] += (l_ae_a - q_s_a[i][i*batch_size+j][demonestration_action])
         return q_s_a_temp
 
     def train_agent(self):
@@ -376,64 +376,46 @@ class DDQN():
         actions = np.zeros(shape = (batch_size))
         speed = np.zeros(shape = (batch_size))
         next_speed = np.zeros(shape = (batch_size))
-        
+        reward = np.zeros(shape = (batch_size))
         idxs_left = left_batch[-1]
         idxs_right = right_batch[-1]
         idxs_follow = follow_batch[-1]
         idxs_straight = straight_batch[-1]        
 
-        # training_states_batch = np.array(states)[:,0]
-        # training_next_states_batch = np.array(new_states)[:,0]
-        # actions = actions
-        # speed = np.array(states)[:,1]
-        # next_speed = np.array(new_states)[:,1]
-        # print(left_batch[1])
-        # print(right_batch[1])
-        # print(follow_batch[1])
-        # print(straight_batch[1])
-
-        # training_states_batch_ = np.array([left_batch[0][:,0], right_batch[0][:,0], follow_batch[0][:,0], straight_batch[0][:,0]]).reshape(-1,1).flatten()
-        # # training_states_batch_ = training_states_batch_.reshape(-1,1)
-        # print(np.array(training_states_batch_).shape)
-
         for i in range(4):
-            for j in range(4):
+            for j in range(branched_batch_size):
                 training_states_batch[i*branched_batch_size:i*branched_batch_size+j] = batch[i][0][:,0][j].squeeze(axis=0)
                 training_next_states_batch[i*branched_batch_size:i*branched_batch_size+j] = batch[i][4][:,0][j].squeeze(axis=0)
-                actions[4*i+j] = batch[i][1][j]
-                speed[4*i+j] = batch[i][0][:,1][j]
-                next_speed[4*i+j] = batch[i][4][:,1][j]
-
-        #print(training_states_batch.shape)
-        # print(training_next_states_batch.shape)
-        # print(actions.shape)
-        # print(speed.shape)
-        # print(next_speed.shape)
-        #print(actions)
-        # # print(training_states_batch.shape)
+                actions[branched_batch_size*i+j] = batch[i][1][j]
+                speed[branched_batch_size*i+j] = batch[i][0][:,1][j]
+                next_speed[branched_batch_size*i+j] = batch[i][4][:,1][j]
+                reward[branched_batch_size*i+j] = batch[i][2][j]
 
         q_s_a = self.model.predict([training_states_batch,speed])   
         q_next_s_next_a = self.target_model.predict([training_next_states_batch,next_speed])
-        #print(np.array(q_s_a).shape)
-        print("lenght of network output is ",len(q_s_a))
-        #y_true = self.rl_loss(0,q_next_s_next_a,q_s_a) + self.supervised_loss(q_s_a,actions)
-        #y_true = self.supervised_loss(q_s_a,actions)
-        #y_true = self.rl_loss(0,q_next_s_next_a,q_s_a) + self.supervised_loss(q_s_a,actions)
-        #model.fit([input,true_output])
+
+        modified_loss = self.rl_loss(reward,q_next_s_next_a,q_s_a) + self.supervised_loss(q_s_a,actions)
+
+        self.model.fit(x = [training_states_batch,speed], y = [modified_loss[0],modified_loss[1],modified_loss[2],modified_loss[3],modified_loss[4]])
 
     def masked_loss_function(self, y_true, y_pred):
-        mask_value=-2
+        mask_value = 0
         mask = K.cast(K.not_equal(y_true, mask_value), K.floatx())     
-        return keras.losses.mean_squared_error(y_true * mask, y_pred * mask)
-    
+        return keras.losses.mean_squared_error(y_true*mask , y_pred * mask)
+
+
+    def loss_function(self, y_true, y_pred):
+        return 4*keras.losses.mean_squared_error(y_true, y_pred*0)
+
+
     def compile_model(self,model):
         opt = Adam(lr=0.0002, beta_1=0.7, beta_2=0.85, decay=1e-6)
 
-        model.compile(optimizer = opt, loss ={'left_branch': self.masked_loss_function,
-                                                                     'right_branch': self.masked_loss_function,
-                                                                     'follow_branch': self.masked_loss_function,                                                                                      
-                                                                     'str_branch': self.masked_loss_function,
-                                                                     'speed_branch_output': self.masked_loss_function} )
+        model.compile(optimizer = opt, loss ={'left_branch': self.loss_function,
+                                                                     'right_branch': self.loss_function,
+                                                                     'follow_branch': self.loss_function,                                                                                      
+                                                                     'str_branch': self.loss_function,
+                                                                     'speed_branch_output': self.loss_function})
         print("Done compiling model!")
         return
   
