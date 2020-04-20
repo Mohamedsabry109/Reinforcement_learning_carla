@@ -138,7 +138,7 @@ class OnlineMemoryBuffer(MemoryBuffer):
             self.memorize(state, action, reward, done, next_state, error=[1])
             state , action , reward = next_state , next_action , next_reward
 
-    def change_priorities(idxs, errors):
+    def change_priorities(self,idxs, errors):
 
         """
             change priorities of online buffer items

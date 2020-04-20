@@ -211,13 +211,19 @@ class DDQN():
     def flatten(self,input_layer,name=None):
         return Flatten(name=name)(input_layer)
     
-    def fc(self, input_layer,n_neurons, activation = 'relu',kernel_initializer = 'he_normal', drop_out = 0,name=None):
+    def fc(self, input_layer,n_neurons, activation = 'relu',kernel_initializer = 'he_normal',batch_norm= False, drop_out = 0,name=None):
         layer =  Dense(n_neurons, activation = 'relu',kernel_initializer = 'he_normal',name=name)(input_layer)
         if drop_out:
             if name is None:
                 layer = self.dropout(layer,drop_out)
             else:
                 layer = self.dropout(layer,drop_out,name=name+'_drop_out')
+        if drop_out:
+            if name is None:
+                layer = self.dropout(layer,drop_out)
+            else:
+                layer = self.dropout(layer,drop_out, name=name+'_dropout')
+
         return layer
     
     def concat(self,input_layer_1 , input_layer_2,name=None):
@@ -227,37 +233,38 @@ class DDQN():
     def get_branched_network(self,input_shape):
         image = Input(input_shape,name='image_input')
         print(image)
-        layer = self.conv_block(image,5 , 2, 32, padding ='valid', drop_out = 0.2, name ='CONV1')       
+        layer = self.conv_block(image,5 , 2, 32, padding ='valid',batch_norm=False, drop_out = 0, name ='CONV1')       
         #print(layer)
-        layer = self.conv_block(layer,3 , 1, 32, padding ='valid', drop_out = 0.2, name ='CONV2')
+        layer = self.conv_block(layer,3 , 1, 32, padding ='valid',batch_norm=False, drop_out = 0, name ='CONV2')
         #print(layer)
-        layer = self.conv_block(layer,3 , 2, 64, padding ='valid', drop_out = 0.2, name ='CONV3')
+        layer = self.conv_block(layer,3 , 2, 64, padding ='valid',batch_norm=False, drop_out = 0, name ='CONV3')
         #print(layer)
-        layer = self.conv_block(layer,3 , 1, 64, padding ='valid', drop_out = 0.2, name ='CONV4')
+        layer = self.conv_block(layer,3 , 1, 64, padding ='valid',batch_norm=False, drop_out = 0, name ='CONV4')
         #print(layer)
-        layer = self.conv_block(layer,3 , 2, 128, padding ='valid', drop_out = 0.2, name ='CONV5')
-        #print(layer)
-        layer = self.conv_block(layer,3 , 1, 128, padding ='valid', drop_out = 0.2, name ='CONV6')
-        #print(layer)
-        layer = self.conv_block(layer,3 , 2, 256, padding ='valid', drop_out = 0.2, name ='CONV7')
-        #print(layer)
-        layer = self.conv_block(layer,3 , 1, 256, padding ='valid', drop_out = 0.2, name ='CONV8')
+        # layer = self.conv_block(layer,3 , 2, 128, padding ='valid', drop_out = 0, name ='CONV5')
+        # #print(layer)
+        # layer = self.conv_block(layer,3 , 1, 128, padding ='valid', drop_out = 0, name ='CONV6')
+        # #print(layer)
+        # layer = self.conv_block(layer,3 , 2, 256, padding ='valid', drop_out = 0, name ='CONV7')
+        # #print(layer)
+        # layer = self.conv_block(layer,3 , 1, 256, padding ='valid', drop_out = 0, name ='CONV8')
         #print(layer)
         layer = self.flatten(layer)
         #print(layer)
-        layer = self.fc(layer, 512, drop_out = 0.5, name ='CONV_FC1')
+        layer = self.fc(layer, 512,batch_norm=True, drop_out = 0, name ='CONV_FC1')
         #print(layer)
-        layer = self.fc(layer, 512, drop_out = 0.5, name ='CONV_FC2')        
+        #layer = self.fc(layer, 512, drop_out = 0, name ='CONV_FC2')        
         # Speed sensory input
         speed=(1,) # input layer'
         speed_input = Input(speed,name='speed_input')
         
-        layer_speed =  self.fc(speed_input, 128, drop_out = 0.5, name ='SPEED_FC1')
-        layer_speed =  self.fc(layer_speed, 128, drop_out = 0.5, name ='SPEED_FC2')
+        layer_speed =  self.fc(speed_input, 128 ,batch_norm=True, drop_out = 0, name ='SPEED_FC1')
+        layer_speed =  self.fc(layer_speed, 128 ,batch_norm=True, drop_out = 0, name ='SPEED_FC2')
         
         middle_layer = self.concat(layer,layer_speed, name ='CONCAT_FC1')
         #print(middle_layer)
-        
+        middle_layer = self.fc(middle_layer, 512,batch_norm=True, drop_out = 0, name ='MIDDLE_FC')
+
         branches_names = ['follow', 'left', 'right', 'straight' , 'speed']
         
         #TODO support for multi speed layers
@@ -271,17 +278,17 @@ class DDQN():
         for i, branch_name in enumerate(branches_names):
             if branch_name != 'speed':
                 #branche for control signals
-                branch_output = self.fc(middle_layer, 256, drop_out = 0.5, name =branches_names[i]+'_FC1')
-                branch_output = self.fc(branch_output, 256, drop_out = 0.5, name =branches_names[i]+'_FC2')
-                branch_output = self.fc(branch_output, 441, drop_out = 0, name =output_branches_names[(i)])
+                branch_output = self.fc(middle_layer, 256,batch_norm=True, drop_out = 0, name =branches_names[i]+'_FC1')
+                #branch_output = self.fc(branch_output, 256,batch_norm=True, drop_out = 0, name =branches_names[i]+'_FC2')
+                branch_output = self.fc(branch_output, 9,batch_norm=True, drop_out = 0, name =output_branches_names[(i)])
                 branches[output_branches_names[i]] = branch_output
                 
             else:
                 #only used images feature vector for predicting speed
                 #TODO try both speed and images feature vector
-                branch_output = self.fc(layer, 256, drop_out = 0.5,name =branches_names[i]+'_FC1')
-                branch_output = self.fc(branch_output, 256, drop_out = 0.5,name =branches_names[i]+'_FC2')
-                branch_output = self.fc(branch_output, 1, drop_out = 0, name =output_branches_names[-1])
+                branch_output = self.fc(layer, 256,batch_norm=True, drop_out = 0,name =branches_names[i]+'_FC1')
+                #branch_output = self.fc(branch_output, 256,batch_norm=True, drop_out = 0,name =branches_names[i]+'_FC2')
+                branch_output = self.fc(branch_output, 1,batch_norm=True, drop_out = 0, name =output_branches_names[-1])
                 branches[output_branches_names[-1]] =  branch_output 
                 
         return Model(inputs = [image, speed_input],outputs = [branches['left_branch'],
@@ -313,16 +320,15 @@ class DDQN():
         O/P : rl loss
         """
         gamma = 0.99
-        batch_size = 4
-        q_s_a_temp = np.zeros((len(q_s_a),np.array(q_s_a[0]).shape[0],np.array(q_s_a[0]).shape[1]))
-        #q_s_a_temp = q_s_a
+        batch_size = self.branched_batch_size
+        #q_s_a_temp = np.zeros((len(q_s_a),np.array(q_s_a[0]).shape[0],np.array(q_s_a[0]).shape[1]))
+        q_s_a_temp = q_s_a
         for i in range(4):
             for j in range(batch_size):
                 q_next_s = np.max(q_next_s_next_a[i][i*batch_size+j])
                 action_token = int(np.argmax(q_s_a_temp[i][i*batch_size+j]))
-                #print(demonestration_action)
-                #print(action_token)
-                q_s_a_temp[i][i*batch_size+j][action_token] = (r_s_a[batch_size*i+j] + gamma*q_next_s - q_s_a[i][i*batch_size+j][action_token])**2 
+                #q_s_a_temp[i][i*batch_size+j][action_token] = (r_s_a[batch_size*i+j] + gamma*q_next_s - q_s_a[i][i*batch_size+j][action_token])**2 
+                q_s_a_temp[i][i*batch_size+j] = (r_s_a[batch_size*i+j] + gamma*q_next_s - q_s_a[i][i*batch_size+j])**2 
 
         return q_s_a_temp
                 
@@ -335,20 +341,21 @@ class DDQN():
         O/P : spervised loss
         """
         l_ae_a = 0.8
-
-        batch_size = 4
-
+        batch_size = self.branched_batch_size
         q_s_a_temp = np.zeros((len(q_s_a),np.array(q_s_a[0]).shape[0],np.array(q_s_a[0]).shape[1]))
-
-        
+        error = np.zeros(ae.shape)
+        q_s_a_temp = q_s_a
         for i in range(4):
             for j in range(batch_size):
                 demonestration_action = int(ae[i*batch_size+j]) # 0 -> 441
                 action_token = int(np.argmax(q_s_a[i][i*batch_size+j]))
-                # print(demonestration_action)
-                # print(action_token)
-                q_s_a_temp[i][i*batch_size+j][action_token] += (l_ae_a - q_s_a[i][i*batch_size+j][demonestration_action])
-        return q_s_a_temp
+                error[i*batch_size+j] = np.abs(q_s_a[i][i*batch_size+j][action_token] + (l_ae_a - q_s_a[i][i*batch_size+j][demonestration_action]))
+                #q_s_a_temp[i][i*batch_size+j][action_token] = q_s_a[i][i*batch_size+j][action_token] + (l_ae_a - q_s_a[i][i*batch_size+j][demonestration_action])
+                q_s_a_temp[i][i*batch_size+j] = q_s_a[i][i*batch_size+j] + (l_ae_a - q_s_a[i][i*batch_size+j][demonestration_action])
+                q_s_a_temp[i][i*batch_size+j][demonestration_action] -= l_ae_a 
+                if (action_token == demonestration_action):
+                    print("#################################################################################################")
+        return q_s_a_temp, error
 
     def train_agent(self):
         """
@@ -359,44 +366,68 @@ class DDQN():
             4- change priorities
             5- calculate supervised loss and rl loss 
         """
+        loss = []
+        self.batch_size = 64
+        self.branched_batch_size = self.batch_size // 4
+        
+        for iteration in range(1000):
 
-        batch_size = 16
-        branched_batch_size = batch_size // 4
 
-        left_batch = self.imitation_online_buffers['left'].sample_batch(4)
-        right_batch = self.imitation_online_buffers['right'].sample_batch(4)
-        follow_batch = self.imitation_online_buffers['follow'].sample_batch(4)
-        straight_batch = self.imitation_online_buffers['straight'].sample_batch(4)
+            left_batch = self.imitation_online_buffers['left'].sample_batch(self.branched_batch_size)
+            right_batch = self.imitation_online_buffers['right'].sample_batch(self.branched_batch_size)
+            follow_batch = self.imitation_online_buffers['follow'].sample_batch(self.branched_batch_size)
+            straight_batch = self.imitation_online_buffers['straight'].sample_batch(self.branched_batch_size)
 
-        #states, actions, rewards, dones, new_states, idxs = batch
-        batch = [left_batch, right_batch, follow_batch, straight_batch]
+            #states, actions, rewards, dones, new_states, idxs = batch
+            batch = [left_batch, right_batch, follow_batch, straight_batch]
 
-        training_states_batch = np.zeros(shape = (batch_size, 88, 200, 3))
-        training_next_states_batch = np.zeros(shape = (batch_size, 88, 200, 3))
-        actions = np.zeros(shape = (batch_size))
-        speed = np.zeros(shape = (batch_size))
-        next_speed = np.zeros(shape = (batch_size))
-        reward = np.zeros(shape = (batch_size))
-        idxs_left = left_batch[-1]
-        idxs_right = right_batch[-1]
-        idxs_follow = follow_batch[-1]
-        idxs_straight = straight_batch[-1]        
+            training_states_batch = np.zeros(shape = (self.batch_size, 88, 200, 3))
+            training_next_states_batch = np.zeros(shape = (self.batch_size, 88, 200, 3))
+            actions = np.zeros(shape = (self.batch_size))
+            speed = np.zeros(shape = (self.batch_size))
+            next_speed = np.zeros(shape = (self.batch_size))
+            reward = np.zeros(shape = (self.batch_size))
+            idxs_left = left_batch[-1]
+            idxs_right = right_batch[-1]
+            idxs_follow = follow_batch[-1]
+            idxs_straight = straight_batch[-1]
+            idxs = [idxs_left,idxs_right,idxs_follow,idxs_straight]        
 
-        for i in range(4):
-            for j in range(branched_batch_size):
-                training_states_batch[i*branched_batch_size:i*branched_batch_size+j] = batch[i][0][:,0][j].squeeze(axis=0)
-                training_next_states_batch[i*branched_batch_size:i*branched_batch_size+j] = batch[i][4][:,0][j].squeeze(axis=0)
-                actions[branched_batch_size*i+j] = batch[i][1][j]
-                speed[branched_batch_size*i+j] = batch[i][0][:,1][j]
-                next_speed[branched_batch_size*i+j] = batch[i][4][:,1][j]
-                reward[branched_batch_size*i+j] = batch[i][2][j]
+            for i in range(4):
+                for j in range(self.branched_batch_size):
+                    training_states_batch[i*self.branched_batch_size:i*self.branched_batch_size+j] = batch[i][0][:,0][j].squeeze(axis=0)
+                    training_next_states_batch[i*self.branched_batch_size:i*self.branched_batch_size+j] = batch[i][4][:,0][j].squeeze(axis=0)
+                    actions[self.branched_batch_size*i+j] = batch[i][1][j]
+                    speed[self.branched_batch_size*i+j] = batch[i][0][:,1][j]
+                    next_speed[self.branched_batch_size*i+j] = batch[i][4][:,1][j]
+                    reward[self.branched_batch_size*i+j] = batch[i][2][j]
 
-        q_s_a = self.model.predict([training_states_batch,speed])   
-        q_next_s_next_a = self.target_model.predict([training_next_states_batch,next_speed])
 
-        modified_loss = self.rl_loss(reward,q_next_s_next_a,q_s_a) + self.supervised_loss(q_s_a,actions)
+            q_s_a = self.model.predict([training_states_batch,speed])   
+            q_next_s_next_a = self.target_model.predict([training_next_states_batch,next_speed])            
 
-        self.model.fit(x = [training_states_batch,speed], y = [modified_loss[0],modified_loss[1],modified_loss[2],modified_loss[3],modified_loss[4]])
+            rl_loss = self.rl_loss(reward,q_next_s_next_a,q_s_a)
+            supervised_loss, supervised_errors = self.supervised_loss(q_s_a,actions)
+            modified_loss = rl_loss + supervised_loss
+            
+            self.updated_buffers(idxs,supervised_errors)
+            hist = self.model.fit(x = [training_states_batch,speed], y = [modified_loss[0],modified_loss[1],modified_loss[2],modified_loss[3],modified_loss[4]])
+            loss.append(hist.history["loss"])
+
+            if (iteration % 100 == 0):
+                print(" Training iteration ", iteration)
+                self.update_target_model()
+
+        #print(loss)    
+        plt.plot(loss)
+        plt.show()
+
+
+    def updated_buffers(self,idxs,supervised_errors):
+        self.imitation_online_buffers['left'].change_priorities(idxs[0],supervised_errors[:self.branched_batch_size])
+        self.imitation_online_buffers['right'].change_priorities(idxs[1],supervised_errors[self.branched_batch_size:self.branched_batch_size*2])
+        self.imitation_online_buffers['follow'].change_priorities(idxs[2],supervised_errors[self.branched_batch_size*2:self.branched_batch_size*3])
+        self.imitation_online_buffers['straight'].change_priorities(idxs[3],supervised_errors[self.branched_batch_size*3:])
 
     def masked_loss_function(self, y_true, y_pred):
         mask_value = 0
@@ -405,7 +436,7 @@ class DDQN():
 
 
     def loss_function(self, y_true, y_pred):
-        return 4*keras.losses.mean_squared_error(y_true, y_pred*0)
+        return keras.losses.mean_squared_error(y_true, y_pred*0)
 
 
     def compile_model(self,model):
@@ -459,8 +490,7 @@ class DDQN():
             This fucntion transfer online network weights to target network
         """
         self.target_model.set_weights(self.model.get_weights())
-        pass
-        #self.target_model.set_weights(self.model.get_weights())
+
 
     def save_model(self):
         """
