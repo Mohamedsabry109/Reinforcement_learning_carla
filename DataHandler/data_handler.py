@@ -150,6 +150,11 @@ class handler(object):
         '''
         pass
 
+    
+    @staticmethod
+    def closest(lst, K): 
+        return lst[min(range(len(lst)), key = lambda i: abs(lst[i]-K))] 
+      
 
     @staticmethod
     def map_outputs( throttle, steer, brake = 0, disceretization_bins = config.QUANTIZATION_BINS, one_output_for_throttle_brake = True):
@@ -160,31 +165,37 @@ class handler(object):
         '''
         # return action_number
         diff = throttle - brake
-        steer_action = np.float(np.round(steer,1))
-        #print("quantized steer ",steer_action)
-        throttle_brake_action = np.float(np.round(diff,1))
+        # steer_action = np.float(np.round(steer,1))
+        # #print("quantized steer ",steer_action)
+        # throttle_brake_action = np.float(np.round(diff,1))
+
+        steer_action = round(handler.closest(config.STEER_VALUES,steer),1)
+        throttle_brake_action = round(handler.closest(config.STEER_VALUES,diff),1)
+
         if abs(throttle_brake_action) == 0:
             throttle_brake_action = 0.0
         if abs(steer_action) == 0:
             steer_action = 0.0
 
 
-        if steer_action > 0:
-            steer_action = 1.0
-        elif steer_action < 0:
-            steer_action = -1.0
-        else:
-            0.0
+        # if steer_action > 0:
+        #     steer_action = 1.0
+        # elif steer_action < 0:
+        #     steer_action = -1.0
+        # else:
+        #     0.0
 
-        if throttle_brake_action > 0:
-            throttle_brake_action = 1.0
-        elif throttle_brake_action < 0:
-            throttle_brake_action = -1.0
-        else:
-            throttle_brake_action = 0.0
+        # if throttle_brake_action > 0:
+        #     throttle_brake_action = 1.0
+        # elif throttle_brake_action < 0:
+        #     throttle_brake_action = -1.0
+        # else:
+        #     throttle_brake_action = 0.0
 
         #print("quantized throttle_brake ",throttle_brake_action)
+        # action_num = config.ACTION_DICT[str(10*steer_action) + '_' + str(10*throttle_brake_action)]
         action_num = config.ACTION_DICT[str(10*steer_action) + '_' + str(10*throttle_brake_action)]
+
         return action_num
 
 
