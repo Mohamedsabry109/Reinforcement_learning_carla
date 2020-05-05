@@ -27,6 +27,9 @@ validation_data_directory = '/home/mohamed/Desktop/Codes/rlfd_data/imitation_dat
 
 
 agent = dqn.DDQN(imitation_data_directory=imitation_data_directory,rl_data_directory = interaction_data_directory)
+
+
+#actions = agent.model.predict()
 # exp_policy = EpsilonGreedy(epsilon = 0.5, linear_schedule = [0.5,0.05,10])
 #agent.train_agent()
 #first we will do imitation while preparing offline buffers of imitation
@@ -46,6 +49,7 @@ agent = dqn.DDQN(imitation_data_directory=imitation_data_directory,rl_data_direc
 # high level command is one hot code
 # episdoe data is sent to the buffer to be saved
 action  = 0 # action number 
+#filtered_i = 0.0
 reward  = 0 # reward
 env = carla_environment.CarlaEnvironment()
 print("number of available poses are : ",env.num_positions)
@@ -55,8 +59,12 @@ for i in range(1):
     while env.done == False:
         env.step([0,1,0])
         episode_data.append(env.state)
+        actions = agent.model.predict([ np.expand_dims(env.state['segmentation'],axis = 0),np.array([env.state['measurements'][0]])])
+        print(type(actions))
+        print(actions)
+        print(np.array(actions))
         #episode_data.append((env.state,env.done))
-        
+
     env.reset(True)
 print(env.action_space)
 print(env.state_space)
