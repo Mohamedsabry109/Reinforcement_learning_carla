@@ -1,4 +1,5 @@
 import numpy as np
+from .utils import *
 
 
 def save_stats():
@@ -24,3 +25,17 @@ def get_comb(steer_range, throttle_range):
             c[key] = action_number
             action_number += 1  
     return c
+
+ def save_interaction_data(data, agent):
+ 	"""
+ 		 Saving Step's data in the interaction data directory while keep tracking the last file 
+ 		 Also we need to save done flag and use it while loading to avoid stacking two nonconsecutive states
+		Args: data dict -> {'state':,'high_level_command','measurments'} and done flag
+			  directions or high level command is -> 0: follow , 1: left, 2: right, 3: straight
+
+		Returns: None
+ 	"""
+
+ 	
+
+ 	pass

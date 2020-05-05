@@ -145,6 +145,33 @@ class handler(object):
         
         return [imgs , velocity] , action_number , reward
 
+    @staticmethod
+    def fetch_single_interaction_image(directory, branch_name, observation_name):
+        '''
+            This Fucntion fetchs data for imitation learning
+            Input: 
+            Output:
+        '''
+
+        filename= directory + '/' + branch_name + '/' + observation_name 
+        with h5py.File(filename, 'r') as hdf:
+                imgs = hdf.get('rgb')
+                imgs = np.array(imgs[:,:,:], dtype = np.uint8)
+                #print(imgs.shape)
+                targets = hdf.get('targets')
+                targets = np.array(targets)
+                steer = targets[:,0][0]
+                throttle = targets[:,1][0]
+                brake = targets[:,2][0]
+                velocity = targets[:,10][0]
+                reward = 0
+                #print(self.map_outputs(throttle = throttle, steer = steer , brake = brake , one_output_for_throttle_brake = True))
+                # self.imshow(imgs[0])
+                action_number = handler.map_outputs(throttle = throttle, steer = steer , brake = brake , one_output_for_throttle_brake = True)
+        
+        return [imgs , velocity] , action_number , reward
+
+
     def fetch_validation():
         '''
         '''

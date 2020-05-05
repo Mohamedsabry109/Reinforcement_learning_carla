@@ -172,8 +172,10 @@ class OfflineMemoryBuffer(MemoryBuffer):
 
         """
         assert os.path.isdir(self.directory)
-        files_list = sorted(os.listdir(self.directory + '/' + self.name + '/'))
+        #sorting files topologically, files' format is -> data_num.h5 
+        files_list = sorted(os.listdir(self.directory + '/' + self.name + '/'), key = lambda x: int(x.split("_")[1].split(".")[0]))
         #print("length of files ",len(files_list))
+        #print(files_list)
         self.files_counter = 0
         if files_list != []:     
             for file_name in files_list:
@@ -287,4 +289,14 @@ class OfflineMemoryBuffer(MemoryBuffer):
         for i in range(len(batch)):
             pass
 
-        
+    def save_step_data(batch):
+        """
+            This function take the observations of some episode and store them on the disk
+            and then updating offline buffer with these new data and their priorites
+            should call change priorities, keep track of names of the data
+            Q: what if we wants to reintialize the code ?? how could we keep track of files, should we change their names
+        Args:
+            [{'state':,'high_level_command','measurments'}]
+        """
+        for i in range(len(batch)):
+            pass        

@@ -37,7 +37,7 @@ import IPython
 
 class DDQN():
 
-    def __init__(self, imitation_data_directory = '',validation_data_directory = '', output_directory = '', epochs = 1, number_minibatches = 16, save_every = 2, start_epoch = 1):
+    def __init__(self, imitation_data_directory = '',validation_data_directory = '',rl_data_directory = '', output_directory = '', epochs = 1, number_minibatches = 16, save_every = 2, start_epoch = 1):
 
         self.epochs = epochs
         self.number_minibatches = number_minibatches
@@ -52,6 +52,7 @@ class DDQN():
         self.fc_count = 0
         self.data_directory = imitation_data_directory
         self.imitation_data_directory = imitation_data_directory
+        self.rl_data_directory = rl_data_directory
         self.validation_data_directory = validation_data_directory
         self.output_directory = output_directory   
         self.branch_names = ['left','right','follow','straight']
@@ -127,11 +128,12 @@ class DDQN():
         #creating buffers offline and online for all branches
         for branch in branches:
             self.rl_online_buffers[branch] = OnlineMemoryBuffer(buffer_size = 1000, with_per = True,
-                                                                         name = branch,train_data_directory = self.imitation_data_directory,
-                                                                         validation_data_directory = self.imitation_data_directory)
+                                                                         name = branch,train_data_directory = self.rl_data_directory,
+                                                                         validation_data_directory = self.rl_data_directory)
             self.rl_offline_buffers[branch] = OfflineMemoryBuffer(buffer_size = 10000, with_per = True,
-                                                                         name = branch,train_data_directory = self.imitation_data_directory,
-                                                                         validation_data_directory = self.imitation_data_directory)
+                                                                         name = branch,train_data_directory = self.rl_data_directory,
+                                                                         validation_data_directory = self.rl_data_directory)
+            #print(self.rl_offline_buffers[branch].files_tracker)
             self.imitation_online_buffers[branch] = OnlineMemoryBuffer(buffer_size = 83, with_per = True,
                                                                          name = branch,train_data_directory = self.imitation_data_directory,
                                                                          validation_data_directory = self.imitation_data_directory)
@@ -233,13 +235,13 @@ class DDQN():
     def get_branched_network(self,input_shape):
         image = Input(input_shape,name='image_input')
         print(image)
-        # layer = self.conv_block(image,5 , 3, 16, padding ='valid',batch_norm=False, drop_out = 0, name ='CONV1')       
-        # #print(layer)
-        # layer = self.conv_block(layer,3 , 3, 16, padding ='valid',batch_norm=False, drop_out = 0, name ='CONV2')
-        # #print(layer)
-        # layer = self.conv_block(layer,3 , 2, 32, padding ='valid',batch_norm=False, drop_out = 0, name ='CONV3')
-        # #print(layer)
-        # layer = self.conv_block(layer,3 , 2, 32, padding ='valid',batch_norm=False, drop_out = 0, name ='CONV4')
+        layer = self.conv_block(image,5 , 3, 16, padding ='valid',batch_norm=False, drop_out = 0, name ='CONV1')       
+        #print(layer)
+        layer = self.conv_block(layer,3 , 3, 16, padding ='valid',batch_norm=False, drop_out = 0, name ='CONV2')
+        #print(layer)
+        layer = self.conv_block(layer,3 , 2, 32, padding ='valid',batch_norm=False, drop_out = 0, name ='CONV3')
+        #print(layer)
+        layer = self.conv_block(layer,3 , 2, 32, padding ='valid',batch_norm=False, drop_out = 0, name ='CONV4')
         # #print(layer)
         # layer = self.conv_block(layer,3 , 2, 64, padding ='valid',batch_norm=True, drop_out = 0, name ='CONV5')
         # # #print(layer)
@@ -249,18 +251,18 @@ class DDQN():
         # # #print(layer)
         # # layer = self.conv_block(layer,3 , 1, 256, padding ='valid', drop_out = 0, name ='CONV8')
         # #print(layer)
-        #layer = self.flatten(layer)
+        layer = self.flatten(layer)
         # #print(layer)
         # layer = self.fc(layer, 512,batch_norm=True, drop_out = 0, name ='CONV_FC1')
         # #print(layer)
         # #layer = self.fc(layer, 512, drop_out = 0, name ='CONV_FC2')     
 
-        mobile_net = tf.keras.applications.MobileNetV2(input_shape=input_shape,
-                                                       include_top=False,
-                                                       weights='imagenet')
-        mobile_net.trainable = False
-        layer = mobile_net(image)
-        layer = keras.layers.Flatten()(layer)
+        # mobile_net = tf.keras.applications.MobileNetV2(input_shape=input_shape,
+        #                                                include_top=False,
+        #                                                weights='imagenet')
+        # mobile_net.trainable = False
+        # layer = mobile_net(image)
+        # layer = keras.layers.Flatten()(layer)
 
         # Speed sensory input
         speed=(1,) # input layer'
@@ -438,7 +440,6 @@ class DDQN():
         for iteration in range(1000):
 
             print("*********************************Start Training iteration ******************************************* ")
-
             left_batch = self.imitation_online_buffers['left'].sample_batch(self.branched_batch_size)
             right_batch = self.imitation_online_buffers['right'].sample_batch(self.branched_batch_size)
             follow_batch = self.imitation_online_buffers['follow'].sample_batch(self.branched_batch_size)
