@@ -145,6 +145,7 @@ class handler(object):
         
         return [imgs , velocity] , action_number , reward
 
+
     @staticmethod
     def fetch_single_interaction_image(directory, branch_name, observation_name):
         '''
@@ -182,6 +183,18 @@ class handler(object):
     def closest(lst, K): 
         return lst[min(range(len(lst)), key = lambda i: abs(lst[i]-K))] 
       
+    @staticmethod
+    def map_actions(action):
+        action_dict = config.ACTION_DICT
+        throttle_brake_steer = list(action_dict.keys())[list(action_dict.values()).index(action)]
+        steer =  float(throttle_brake_steer[0].split("_")[0])
+        throttle_brake = float(throttle_brake_steer[0].split("_")[1])
+
+        if throttle_brake > 0:
+            return throttle_brake , 0 , steer
+        else:
+            return 0, throttle_brake, steer
+
 
     @staticmethod
     def map_outputs( throttle, steer, brake = 0, disceretization_bins = config.QUANTIZATION_BINS, one_output_for_throttle_brake = True):

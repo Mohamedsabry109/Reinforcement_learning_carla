@@ -9,6 +9,7 @@ from tensorflow.keras.layers import AveragePooling2D, MaxPooling2D, Dropout, Glo
 from tensorflow.keras.models import Model, load_model
 from tensorflow.keras.utils import plot_model
 from tensorflow.keras import backend as K
+
 # gpu_fraction = 0.9
 # per_process_gpu_memory_fraction=gpu_fraction,
 # gpu_options = tf.GPUOptions(allow_growth=True)
@@ -18,11 +19,11 @@ from tensorflow.keras import backend as K
 # gpu_options = tf.GPUOptions(per_process_gpu_memory_fraction=0.5)
 # sess = tf.Session(config=tf.ConfigProto(gpu_options=gpu_options))
 # K.set_session(sess)
+
 from Memory.memory_buffer import MemoryBuffer,OfflineMemoryBuffer, OnlineMemoryBuffer
 import matplotlib.pyplot as plt
 import random
 import os, os.path
-# from google.colab.patches import cv2_imshow
 import h5py
 import numpy as np
 import re
@@ -458,7 +459,6 @@ class DDQN():
             idxs_follow = follow_batch[-1]
             idxs_straight = straight_batch[-1]
             idxs = [idxs_left,idxs_right,idxs_follow,idxs_straight]      
-
             for i in range(4):
                 for j in range(self.branched_batch_size):
                     #print(batch[0][0].shape)
@@ -469,7 +469,6 @@ class DDQN():
                     speed[self.branched_batch_size*i+j] = batch[i][0][:,1][j]
                     next_speed[self.branched_batch_size*i+j] = batch[i][4][:,1][j]
                     reward[self.branched_batch_size*i+j] = batch[i][2][j]
-
 
             self.q_s_a = self.model.predict([training_states_batch,speed])
             self.q_next_s_a_online = self.model.predict([training_next_states_batch,speed])
@@ -495,11 +494,18 @@ class DDQN():
         plt.show()
 
 
-    def updated_buffers(self,idxs,supervised_errors):
+    def update_online_buffers(self,idxs,supervised_errors):
         self.imitation_online_buffers['left'].change_priorities(idxs[0],supervised_errors[:self.branched_batch_size])
         self.imitation_online_buffers['right'].change_priorities(idxs[1],supervised_errors[self.branched_batch_size:self.branched_batch_size*2])
         self.imitation_online_buffers['follow'].change_priorities(idxs[2],supervised_errors[self.branched_batch_size*2:self.branched_batch_size*3])
         self.imitation_online_buffers['straight'].change_priorities(idxs[3],supervised_errors[self.branched_batch_size*3:])
+
+    def update_offline_buffer():
+        """
+            Updating priorites inside the offline buffer
+            call buffer.get() on all buffer entires, save errors and then update all values, then reload
+        """
+        pass
 
     def masked_loss_function(self, y_true, y_pred):
         mask_value = 0

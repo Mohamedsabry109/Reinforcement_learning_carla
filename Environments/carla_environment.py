@@ -424,7 +424,7 @@ class CarlaEnvironment(EnvironmentInterface):
     def take_action(self, action):
         self.control = VehicleControl()
 
-            # transform the 2 value action (steer, throttle - brake) into a 3 value action (steer, throttle, brake)
+        # transform the 2 value action (steer, throttle - brake) into a 3 value action (steer, throttle, brake)
         self.control.steer = np.clip(action[0], -1, 1)
         self.control.throttle = np.clip(action[1], 0, 1)
         self.control.brake = np.abs(np.clip(action[2], 0, 1))

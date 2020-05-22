@@ -182,6 +182,8 @@ class OfflineMemoryBuffer(MemoryBuffer):
                 self.memorize(name = file_name, error = 1)
                 self.files_counter += 1
             self.files_tracker = file_name
+        else:
+            self.files_tracker = 'data_-1.h5'
 
 
     def change_priorities(self,idxs,errors):
