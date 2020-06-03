@@ -194,8 +194,9 @@ class OfflineMemoryBuffer(MemoryBuffer):
             idxs: array of int 
             errors: array of int
         """
+        print("Indecies ",idxs)
         for i,idx in enumerate(idxs):
-            self.update(idx,errors[i])
+            self.update(idx, errors[i])
 
     def memorize(self,name= None, error=None):
         """
@@ -239,7 +240,7 @@ class OfflineMemoryBuffer(MemoryBuffer):
                 #print("sampled data ", s, " ",data, end=" ")
                 batch.append((*data, idx))
 
-            idx = np.array([i[1] for i in batch])
+            idx = np.array([i[2] for i in batch])
             #idx in the offline buffer
             
         # Sample randomly from Buffer
@@ -279,26 +280,3 @@ class OfflineMemoryBuffer(MemoryBuffer):
         return self.data_handler.fetch_minibatch(self.name,self.files_counter)
 
 
-    def save_episode_data(batch):
-        """
-            This function take the observations of some episode and store them on the disk
-            and then updating offline buffer with these new data and their priorites
-            should call change priorities, keep track of names of the data
-            Q: what if we wants to reintialize the code ?? how could we keep track of files, should we change their names
-        Args:
-            [{'state':,'high_level_command','measurments'}]
-        """
-        for i in range(len(batch)):
-            pass
-
-    def save_step_data(batch):
-        """
-            This function take the observations of some episode and store them on the disk
-            and then updating offline buffer with these new data and their priorites
-            should call change priorities, keep track of names of the data
-            Q: what if we wants to reintialize the code ?? how could we keep track of files, should we change their names
-        Args:
-            [{'state':,'high_level_command','measurments'}]
-        """
-        for i in range(len(batch)):
-            pass        

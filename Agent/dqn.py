@@ -56,6 +56,7 @@ class DDQN():
         self.rl_data_directory = rl_data_directory
         self.validation_data_directory = validation_data_directory
         self.output_directory = output_directory   
+        self.weights_counter = 0
         self.branch_names = ['left','right','follow','straight']
 
         self.initialize_buffers() # initializing offline buffers
@@ -108,6 +109,9 @@ class DDQN():
         self.compile_model(self.model)
         self.target_model = self.get_model()
         self.compile_model(self.target_model)
+
+        #self.tensorboard_callback = tf.keras.callbacks.TensorBoard(log_dir=self.output_directory + 'TensorBoard', histogram_freq= 1, write_grads=True, write_images=True)
+
         print(self.model)
         print(self.target_model)
         #creating folder for weights
@@ -121,9 +125,6 @@ class DDQN():
         if not (os.path.isdir(self.output_directory + 'SteeringAngels')):
             os.mkdir(self.output_directory + 'SteeringAngels')
 
-    # def __str__(self):
-
-    #     return str(self.imitation_online_buffers['left'].buffer[0])
 
     def initialize_buffers(self):
 
@@ -137,14 +138,14 @@ class DDQN():
             self.rl_online_buffers[branch] = OnlineMemoryBuffer(buffer_size = 100, with_per = True,
                                                                          name = branch,train_data_directory = self.rl_data_directory,
                                                                          validation_data_directory = self.rl_data_directory)
-            self.rl_offline_buffers[branch] = OfflineMemoryBuffer(buffer_size = 10000, with_per = True,
+            self.rl_offline_buffers[branch] = OfflineMemoryBuffer(buffer_size = 1000, with_per = True,
                                                                          name = branch,train_data_directory = self.rl_data_directory,
                                                                          validation_data_directory = self.rl_data_directory)
             #print(self.rl_offline_buffers[branch].files_tracker)
             self.imitation_online_buffers[branch] = OnlineMemoryBuffer(buffer_size = 100, with_per = True,
                                                                          name = branch,train_data_directory = self.imitation_data_directory,
                                                                          validation_data_directory = self.imitation_data_directory)
-            self.imitation_offline_buffers[branch] = OfflineMemoryBuffer(buffer_size = 10000, with_per = True,
+            self.imitation_offline_buffers[branch] = OfflineMemoryBuffer(buffer_size = 1000, with_per = True,
                                                                          name = branch,train_data_directory = self.imitation_data_directory,
                                                                          validation_data_directory = self.imitation_data_directory)
 
@@ -288,9 +289,9 @@ class DDQN():
         branches = {}
         output_branches_names = ['left_branch',
                                  'right_branch',
-                               'follow_branch',
-                                'str_branch',
-                               'speed_branch_output']
+                                 'follow_branch',
+                                 'str_branch',
+                                 'speed_branch_output']
         
         for i, branch_name in enumerate(branches_names):
             if branch_name != 'speed':
@@ -439,7 +440,7 @@ class DDQN():
             5- calculate supervised loss and rl loss 
         """
 
-        loss = []
+        self.loss = []
         self.acc = []
         self.batch_size = 32
         self.branched_batch_size = self.batch_size // 4
@@ -487,12 +488,13 @@ class DDQN():
             #self.update_buffers(idxs,supervised_errors)
             #TODO, update online rl and supervised priorities in online and offline buffers
 
-            hist = self.model.fit(x = [training_states_batch,speed], y = [modified_loss[0],modified_loss[1],modified_loss[2],modified_loss[3],modified_loss[4]])
-            loss.append(hist.history["loss"])
+            hist = self.model.fit(x = [training_states_batch,speed], y = [modified_loss[0],modified_loss[1],modified_loss[2],modified_loss[3],modified_loss[4]] , callbacks = [self.tensorboard_callback])
+            self.loss.append(hist.history["loss"])
 
-            if (iteration % 100 == 0):
+            if (iteration % 10 == 0):
                 print(" Training iteration ", iteration)
                 self.update_target_model()
+                self.update_offline_buffer()
 
         #print(loss)    
         #plt.plot(loss[100:])
@@ -632,7 +634,7 @@ class DDQN():
         self.imitation_online_buffers['follow'].change_priorities(idxs[2],supervised_errors[self.branched_batch_size*2:self.branched_batch_size*3])
         self.imitation_online_buffers['straight'].change_priorities(idxs[3],supervised_errors[self.branched_batch_size*3:])
 
-    def update_offline_buffer():
+    def update_offline_buffer(self):
         """
             Updating priorites inside the offline buffer
             call buffer.get() on all buffer entires, save errors and then update all values, then reload
@@ -641,11 +643,32 @@ class DDQN():
         #self.imitation_online_buffers['left'].offline_idxs -> 
         #self.imitation_online_buffers['left'].buffer.tree -> [self.capacity -1 : ] , for example, [3:] if capacity is 4 then tree size is 7 "0,1,2" for sum, rest for actual priorities
         
-        self.imitation_online_buffers['left'].change_priorities(self.imitation_online_buffers['left'].offline_idxs ,self.imitation_online_buffers['left'].buffer.tree[self.imitation_online_buffers['left'].buffer.capacity:])
-        self.imitation_online_buffers['right'].change_priorities(self.imitation_online_buffers['right'].offline_idxs ,self.imitation_online_buffers['right'].buffer.tree[self.imitation_online_buffers['right'].buffer.capacity:])
-        self.imitation_online_buffers['follow'].change_priorities(self.imitation_online_buffers['follow'].offline_idxs ,self.imitation_online_buffers['follow'].buffer.tree[self.imitation_online_buffers['follow'].buffer.capacity:])
-        self.imitation_online_buffers['straight'].change_priorities(self.imitation_online_buffers['straight'].offline_idxs ,self.imitation_online_buffers['straight'].buffer.tree[self.imitation_online_buffers['straight'].buffer.capacity:])
-        pass
+        self.imitation_offline_buffers['left'].change_priorities(self.imitation_online_buffers['left'].offline_idxs ,self.imitation_online_buffers['left'].buffer.tree[self.imitation_online_buffers['left'].buffer.capacity-1:])
+        self.imitation_offline_buffers['right'].change_priorities(self.imitation_online_buffers['right'].offline_idxs ,self.imitation_online_buffers['right'].buffer.tree[self.imitation_online_buffers['right'].buffer.capacity-1:])
+        self.imitation_offline_buffers['follow'].change_priorities(self.imitation_online_buffers['follow'].offline_idxs ,self.imitation_online_buffers['follow'].buffer.tree[self.imitation_online_buffers['follow'].buffer.capacity-1:])
+        self.imitation_offline_buffers['straight'].change_priorities(self.imitation_online_buffers['straight'].offline_idxs ,self.imitation_online_buffers['straight'].buffer.tree[self.imitation_online_buffers['straight'].buffer.capacity-1:])
+        
+
+    def update_rl_online_buffers(self,idxs,supervised_errors):
+        self.rl_online_buffers['left'].change_priorities(idxs[0],supervised_errors[:self.branched_batch_size])
+        self.rl_online_buffers['right'].change_priorities(idxs[1],supervised_errors[self.branched_batch_size:self.branched_batch_size*2])
+        self.rl_online_buffers['follow'].change_priorities(idxs[2],supervised_errors[self.branched_batch_size*2:self.branched_batch_size*3])
+        self.rl_online_buffers['straight'].change_priorities(idxs[3],supervised_errors[self.branched_batch_size*3:])
+
+    def update_rl_offline_buffer(self):
+        """
+            Updating priorites inside the offline buffer
+            call buffer.get() on all buffer entires, save errors and then update all values, then reload
+        """
+        #
+        #self.imitation_online_buffers['left'].offline_idxs -> 
+        #self.imitation_online_buffers['left'].buffer.tree -> [self.capacity -1 : ] , for example, [3:] if capacity is 4 then tree size is 7 "0,1,2" for sum, rest for actual priorities
+        
+        self.rl_offline_buffers['left'].change_priorities(self.rl_online_buffers['left'].offline_idxs ,self.rl_online_buffers['left'].buffer.tree[self.rl_online_buffers['left'].buffer.capacity-1:])
+        self.rl_offline_buffers['right'].change_priorities(self.rl_online_buffers['right'].offline_idxs ,self.rl_online_buffers['right'].buffer.tree[self.rl_online_buffers['right'].buffer.capacity-1:])
+        self.rl_offline_buffers['follow'].change_priorities(self.rl_online_buffers['follow'].offline_idxs ,self.rl_online_buffers['follow'].buffer.tree[self.rl_online_buffers['follow'].buffer.capacity-1:])
+        self.rl_offline_buffers['straight'].change_priorities(self.rl_online_buffers['straight'].offline_idxs ,self.rl_online_buffers['straight'].buffer.tree[self.irl_online_buffers['straight'].buffer.capacity-1:])
+        
 
 
 
@@ -679,46 +702,12 @@ class DDQN():
         opt = Adam(lr=0.01, beta_1=0.7, beta_2=0.85, decay=1e-6)
         self.supervised_loss_ = np.zeros((5,1))
         model.compile(optimizer = opt, loss ={'left_branch': self.loss_function_left,
-                                             'right_branch': self.loss_function_right,
-                                             'follow_branch': self.loss_function_follow,                                                                                      
-                                             'str_branch': self.loss_function_straight,
-                                             'speed_branch_output': self.loss_function_speed})
+                                              'right_branch': self.loss_function_right,
+                                              'follow_branch': self.loss_function_follow,                                                                                      
+                                              'str_branch': self.loss_function_straight,
+                                              'speed_branch_output': self.loss_function_speed})
         print("Done compiling model!")
         return
-  
-    
-       
-
-    def train(self):
-        train_directory = self.train_data_directory + 'follow'
-        validation_directory = self.validation_data_directory + 'follow'
-        number_of_files = len([name for name in os.listdir(train_directory) if os.path.isfile(os.path.join(train_directory, name))]) #Number of files
-        print("Number of files is:", number_of_files, "In ", train_directory)
-        validation_number_of_files = len([name for name in os.listdir(validation_directory) if os.path.isfile(os.path.join(validation_directory, name))]) #Number of files
-
-        #xValidation, yValidation = self.fetch_validation(0,1)
-        #validation_images, validation_labels = self.fetch_validation(0,1)
-        #self.model.load_weights('/media/dell1/1.6TBVolume/RL/DeepLearningModel/LSTM10-2/Weights/' +   'weights00000032.h5')
-        self.model.save(self.output_directory + '/Weights/' + 'BH1_Nvidia.h5')
-        tensorboard = tf.keras.callbacks.TensorBoard(log_dir=self.output_directory + 'TensorBoard', histogram_freq= 1, write_grads=True, write_images=True)
-        mc = keras.callbacks.ModelCheckpoint(self.output_directory + '/Weights/' +  'weights{epoch:08d}.h5', 
-                                                                         save_weights_only=True, period=self.save_every)
-        print("Start Training...")
-        self.generator_counter = 0
-        self.validation_generator_counter = 0
-        print("Start epoch {}".format(self.start_epoch))
-        
-#         hist1 = self.model.fit_generator(generator=self.fetch(self.number_minibatches,number_of_files), epochs = self.epochs+self.start_epoch, initial_epoch = self.start_epoch,
-#                                                                      steps_per_epoch=number_of_files, verbose = 1, shuffle=True,
-#                                                                      validation_data = (validation_images, validation_labels), validation_steps=1,
-#                                                                      callbacks=[tensorboard, mc])
-                
-        hist1 = self.model.fit_generator(generator=self.fetch(self.number_minibatches,number_of_files), epochs = self.epochs+self.start_epoch, initial_epoch = self.start_epoch,
-                                                                     steps_per_epoch=number_of_files, verbose = 1, shuffle=True, use_multiprocessing=False,
-                                                                     validation_data = self.fetch_validation(self.number_minibatches,validation_number_of_files), validation_steps=int(validation_number_of_files/10),
-                                                                     callbacks=[tensorboard, mc])
-
-
 
 
     def update_target_model(self):
@@ -728,16 +717,33 @@ class DDQN():
         self.target_model.set_weights(self.model.get_weights())
 
 
-    def save_model(self):
+    def save_model(self,model,output_directory):
         """
             This function save both target and online networks
             I/P : Models' Path
         """
-        pass
+        model.save(output_directory + '/Weights/' + 'BH1_Nvidia.h5')
+        model.save_weights(output_directory + '/Weights/' + 'weights_'+str(self.weights_counter))
+        
 
-    def load_model(self):
+    def load_model(self,output_directory):
         """
             This function load both target and online networks
             I/P : Models' Path
         """
+        self.model.load_model(output_directory + '/Weights/' + 'BH1_Nvidia.h5')
+        self.target_model.load_model(output_directory + '/Weights/' + 'BH1_Nvidia.h5')
+
+        assert os.path.isdir(output_directory + '/Weights/')
+        #sorting files topologically, files' format is -> data_num.h5 
+        weights_list = sorted(os.listdir(output_directory + '/Weights/'), key = lambda x: int(x.split("_")[1].split(".")[0]))
+        self.weights_counter = int(weights_list[-1].split("_")[1].split(".")[0])
+        self.model.load_weights(output_directory + '/Weights/' + weights_list[-1])
+        self.target_model.load_weights(output_directory + '/Weights/' + weights_list[-1])
         pass
+
+    def save_supervised_stats(self):
+        file_name = '/Stats/statistics'
+        with h5py.File(file_name, 'w') as hdf:
+            hdf.create_dataset('loss', data=self.loss)
+            hdf.create_dataset('acc', data=self.acc)

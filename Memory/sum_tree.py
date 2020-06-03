@@ -14,6 +14,7 @@ class SumTree:
         self.data = numpy.zeros( capacity, dtype=object )
 
     def _propagate(self, idx, change):
+        #idx is the index in the tree
         parent = (idx - 1) // 2
 
         self.tree[parent] += change

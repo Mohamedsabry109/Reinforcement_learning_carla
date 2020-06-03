@@ -43,16 +43,24 @@ heatup(env,agent,exp_policy,ACTION_NUMBER_TO_VALUES)
 
 ########### supervised + rl training #############
 print("supervised + rl training ")
-for i in range(3):
+number_initial_non_used_frames = 50
+for i in range(2):
+    number_initial_non_used_frames = 50
     episode_data = {'states':[],'actions':[],'reward':[],'done':[]}
     while env.done == False:
         env.step([0,1,0])
         episode_data['states'].append(env.state)
-        actions = agent.model.predict([ np.expand_dims(env.state['forward_camera'],axis = 0),np.array([env.state['measurements'][0]])])
-        episode_data['actions'].append(actions)
-        episode_data['reward'].append(env.reward)
-        episode_data['done'].append(env.done)
-        agent.train_agent_rl_supervised(iterations = 1)
+        if number_initial_non_used_frames > 0:
+            pass 
+            number_initial_non_used_frames -= 1
+        else:
+            actions = agent.model.predict([ np.expand_dims(env.state['forward_camera'],axis = 0),np.array([env.state['measurements'][0]])])
+            episode_data['actions'].append(actions)
+            episode_data['reward'].append(env.reward)
+            episode_data['done'].append(env.done)
+            agent.train_agent_rl_supervised(iterations = 1)
+
+    save_interaction_data(episode_data,agent)
     env.reset(True)
 
 env.close_server()
