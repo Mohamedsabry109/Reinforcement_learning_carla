@@ -130,11 +130,11 @@ class OnlineMemoryBuffer(MemoryBuffer):
         #loading online buffer from offline buffer by sampling (online_buffer.buffer_size) samples 
         names, idxs = offline_buffer.sample_batch(self.buffer_size)
         self.offline_idxs = idxs
-        state , action , reward = data_handler.handler.fetch_single_image(directory = self.directory, branch_name = self.name, observation_name = names[0])
+        state , action , reward, done = data_handler.handler.fetch_single_image(directory = self.directory, branch_name = self.name, observation_name = names[0])
         #loop on names and load in the online buffer
         for i in range(len(names)-1):
-            next_state , next_action , next_reward = data_handler.handler.fetch_single_image(directory = self.directory, branch_name = self.name, observation_name = names[i+1])
-            done = 0
+            next_state , next_action , next_reward , done = data_handler.handler.fetch_single_image(directory = self.directory, branch_name = self.name, observation_name = names[i+1])
+            #done = 0
             self.memorize(state, action, reward, done, next_state, error=[1])
             state , action , reward = next_state , next_action , next_reward
 

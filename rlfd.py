@@ -26,19 +26,38 @@ imitation_data_directory = '/home/mohamed/Desktop/Codes/rlfd_data/imitation_data
 validation_data_directory = '/home/mohamed/Desktop/Codes/rlfd_data/imitation_data'
 
 
-
 agent = dqn.DDQN(imitation_data_directory=imitation_data_directory,rl_data_directory = interaction_data_directory)
-
-
-#actions = agent.model.predict()
 exp_policy = EpsilonGreedy(epsilon = 0.5, linear_schedule = [0.5,0.05,10])
-#agent.train_agent()
-#first we will do imitation while preparing offline buffers of imitation
-#when starts interaction initialize online buffer for rl
-#prepare and initialize online  and offline buffers for rl
+#actions = agent.model.predict()
 
-#handler = data_handler.handler(train_data_directory = imitation_data_directory, validation_data_directory = imitation_data_directory)
-#print(handler.map_outputs(throttle =0 , brake = 0.9 , steer = -0.99))
+########### supervised training #############
+agent.train_agent_supervised(iterations = 100)
+
+########### Open the environment #############
+env = carla_environment.CarlaEnvironment()
+
+
+###########  Heatup for RL #############
+print("Starting heatup")
+heatup(env,agent,exp_policy,ACTION_NUMBER_TO_VALUES)
+
+########### supervised + rl training #############
+print("supervised + rl training ")
+for i in range(3):
+    episode_data = {'states':[],'actions':[],'reward':[],'done':[]}
+    while env.done == False:
+        env.step([0,1,0])
+        episode_data['states'].append(env.state)
+        actions = agent.model.predict([ np.expand_dims(env.state['forward_camera'],axis = 0),np.array([env.state['measurements'][0]])])
+        episode_data['actions'].append(actions)
+        episode_data['reward'].append(env.reward)
+        episode_data['done'].append(env.done)
+        agent.train_agent_rl_supervised(iterations = 1)
+    env.reset(True)
+
+env.close_server()
+
+
 
 
 
@@ -53,11 +72,9 @@ exp_policy = EpsilonGreedy(epsilon = 0.5, linear_schedule = [0.5,0.05,10])
 action  = 0 # action number 
 #filtered_i = 0.0
 reward  = 0 # reward
+#print("number of available poses are : ",env.num_positions)
 
-env = carla_environment.CarlaEnvironment()
-print("number of available poses are : ",env.num_positions)
-
-heatup(env,agent,exp_policy,ACTION_NUMBER_TO_VALUES)
+#heatup(env,agent,exp_policy,ACTION_NUMBER_TO_VALUES)
 
 # for i in range(1):
 #     print("iteration ",i)
@@ -85,4 +102,4 @@ heatup(env,agent,exp_policy,ACTION_NUMBER_TO_VALUES)
 # print(episode_data[0]['segmentation'])
 # print(episode_data[0]['measurements'])
 # print(episode_data[0]['high_level_command'])
-env.close_server()
+

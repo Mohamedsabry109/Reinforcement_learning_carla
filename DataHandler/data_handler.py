@@ -138,12 +138,15 @@ class handler(object):
                 throttle = targets[:,1][0]
                 brake = targets[:,2][0]
                 velocity = targets[:,10][0]
-                reward = 0
+                #TODO,  reward and done must be saved in supervised data
+                #reward = 0
+                reward = targets[:,28][0]
+                done = targets[:,29][0]
                 #print(self.map_outputs(throttle = throttle, steer = steer , brake = brake , one_output_for_throttle_brake = True))
                 # self.imshow(imgs[0])
                 action_number = handler.map_outputs(throttle = throttle, steer = steer , brake = brake , one_output_for_throttle_brake = True)
         
-        return [imgs , velocity] , action_number , reward
+        return [imgs , velocity] , action_number , reward , done
 
 
     @staticmethod

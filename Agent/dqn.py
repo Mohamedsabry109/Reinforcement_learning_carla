@@ -10,10 +10,10 @@ from tensorflow.keras.models import Model, load_model
 from tensorflow.keras.utils import plot_model
 from tensorflow.keras import backend as K
 
-# gpu_fraction = 0.9
-# per_process_gpu_memory_fraction=gpu_fraction,
-# gpu_options = tf.GPUOptions(allow_growth=True)
-# session = tf.Session(config=tf.ConfigProto(gpu_options=gpu_options))
+gpu_fraction = 0.5
+per_process_gpu_memory_fraction=gpu_fraction,
+gpu_options = tf.GPUOptions(allow_growth=True)
+session = tf.Session(config=tf.ConfigProto(gpu_options=gpu_options))
 # %matplotlib inline
 
 # gpu_options = tf.GPUOptions(per_process_gpu_memory_fraction=0.5)
@@ -64,6 +64,12 @@ class DDQN():
         self.imitation_online_buffers['right'].reload(self.imitation_offline_buffers['right'])
         self.imitation_online_buffers['follow'].reload(self.imitation_offline_buffers['follow'])
         self.imitation_online_buffers['straight'].reload(self.imitation_offline_buffers['straight'])
+
+
+        self.rl_online_buffers['left'].reload(self.rl_offline_buffers['left'])
+        self.rl_online_buffers['right'].reload(self.rl_offline_buffers['right'])
+        self.rl_online_buffers['follow'].reload(self.rl_offline_buffers['follow'])
+        self.rl_online_buffers['straight'].reload(self.rl_offline_buffers['straight'])
 
         #batch = self.imitation_online_buffers['left'].sample_batch(4)
         # states, actions, rewards, dones, new_states, idxs = batch
@@ -128,14 +134,14 @@ class DDQN():
         self.imitation_online_buffers = {}
         #creating buffers offline and online for all branches
         for branch in branches:
-            self.rl_online_buffers[branch] = OnlineMemoryBuffer(buffer_size = 1000, with_per = True,
+            self.rl_online_buffers[branch] = OnlineMemoryBuffer(buffer_size = 100, with_per = True,
                                                                          name = branch,train_data_directory = self.rl_data_directory,
                                                                          validation_data_directory = self.rl_data_directory)
             self.rl_offline_buffers[branch] = OfflineMemoryBuffer(buffer_size = 10000, with_per = True,
                                                                          name = branch,train_data_directory = self.rl_data_directory,
                                                                          validation_data_directory = self.rl_data_directory)
             #print(self.rl_offline_buffers[branch].files_tracker)
-            self.imitation_online_buffers[branch] = OnlineMemoryBuffer(buffer_size = 83, with_per = True,
+            self.imitation_online_buffers[branch] = OnlineMemoryBuffer(buffer_size = 100, with_per = True,
                                                                          name = branch,train_data_directory = self.imitation_data_directory,
                                                                          validation_data_directory = self.imitation_data_directory)
             self.imitation_offline_buffers[branch] = OfflineMemoryBuffer(buffer_size = 10000, with_per = True,
@@ -236,15 +242,15 @@ class DDQN():
     def get_branched_network(self,input_shape):
         image = Input(input_shape,name='image_input')
         print(image)
-        layer = self.conv_block(image,5 , 3, 16, padding ='valid',batch_norm=False, drop_out = 0, name ='CONV1')       
+        layer = self.conv_block(image,5 , 2, 24, padding ='valid',batch_norm=False, drop_out = 0, name ='CONV1')       
         #print(layer)
-        layer = self.conv_block(layer,3 , 3, 16, padding ='valid',batch_norm=False, drop_out = 0, name ='CONV2')
+        layer = self.conv_block(layer,5 , 2, 36, padding ='valid',batch_norm=False, drop_out = 0, name ='CONV2')
         #print(layer)
-        layer = self.conv_block(layer,3 , 2, 32, padding ='valid',batch_norm=False, drop_out = 0, name ='CONV3')
+        layer = self.conv_block(layer,5 , 2, 48, padding ='valid',batch_norm=False, drop_out = 0, name ='CONV3')
         #print(layer)
-        layer = self.conv_block(layer,3 , 2, 32, padding ='valid',batch_norm=False, drop_out = 0, name ='CONV4')
+        layer = self.conv_block(layer,3 , 2, 64, padding ='valid',batch_norm=False, drop_out = 0, name ='CONV4')
         # #print(layer)
-        # layer = self.conv_block(layer,3 , 2, 64, padding ='valid',batch_norm=True, drop_out = 0, name ='CONV5')
+        layer = self.conv_block(layer,3 , 2, 64, padding ='valid',batch_norm=True, drop_out = 0, name ='CONV5')
         # # #print(layer)
         # # layer = self.conv_block(layer,3 , 1, 128, padding ='valid', drop_out = 0, name ='CONV6')
         # # #print(layer)
@@ -254,9 +260,9 @@ class DDQN():
         # #print(layer)
         layer = self.flatten(layer)
         # #print(layer)
-        # layer = self.fc(layer, 512,batch_norm=True, drop_out = 0, name ='CONV_FC1')
+        layer = self.fc(layer, 512,batch_norm=True, drop_out = 0, name ='CONV_FC1')
         # #print(layer)
-        # #layer = self.fc(layer, 512, drop_out = 0, name ='CONV_FC2')     
+        layer = self.fc(layer, 256, drop_out = 0, name ='CONV_FC2')     
 
         # mobile_net = tf.keras.applications.MobileNetV2(input_shape=input_shape,
         #                                                include_top=False,
@@ -423,7 +429,7 @@ class DDQN():
 
         return l_eq, error
 
-    def train_agent(self):
+    def train_agent_supervised(self,iterations = 100):
         """
             This model take care of all model's training stuff
             1- fetch mini batches for training
@@ -438,7 +444,7 @@ class DDQN():
         self.batch_size = 32
         self.branched_batch_size = self.batch_size // 4
         
-        for iteration in range(1000):
+        for iteration in range(iterations):
 
             print("*********************************Start Training iteration ******************************************* ")
             left_batch = self.imitation_online_buffers['left'].sample_batch(self.branched_batch_size)
@@ -478,7 +484,9 @@ class DDQN():
             self.supervised_loss_, supervised_errors = self.supervised_loss(self.q_s_a, actions)
             modified_loss = rl_loss 
             
-            self.updated_buffers(idxs,supervised_errors)
+            #self.update_buffers(idxs,supervised_errors)
+            #TODO, update online rl and supervised priorities in online and offline buffers
+
             hist = self.model.fit(x = [training_states_batch,speed], y = [modified_loss[0],modified_loss[1],modified_loss[2],modified_loss[3],modified_loss[4]])
             loss.append(hist.history["loss"])
 
@@ -488,10 +496,134 @@ class DDQN():
 
         #print(loss)    
         #plt.plot(loss[100:])
-        plt.plot(loss)
-        plt.show()
-        plt.plot(self.acc)
-        plt.show()
+        # plt.plot(loss)
+        # plt.show()
+        # plt.plot(self.acc)
+        # plt.show()
+
+
+
+
+
+    def train_agent_rl_supervised(self,supervised_rl_data_ratio = 0.5, iterations = 1):
+        """
+            This model take care of all model's training stuff
+            1- fetch mini batches for training
+            2- calculate state action value function for current state and next states
+            3- calculate td errors
+            4- change priorities
+            5- calculate supervised loss and rl loss 
+
+
+            NB, When trying to add N-step return, we have to store time-steps data to the buffers, then we need to look in the future for each state
+                to calculate N-step return for each time step in training i.e for each mini batch of training, and it will work even we are working with multiple frame architecture
+        
+
+        Args: 
+            supervised_rl_data_ration : ratio or rl data in every batch or trainging
+        
+        """
+        loss = []
+        self.acc = []
+        self.batch_size = 32
+        self.branched_batch_size = self.batch_size // 4
+        
+        for iteration in range(iterations):
+
+            print("*********************************Start Training iteration ******************************************* ")
+            
+            # TODO, fetch supervised, fetch rl, concatenate and complete
+
+
+            left_batch_imitation = self.imitation_online_buffers['left'].sample_batch(self.branched_batch_size)
+            right_batch_imitation = self.imitation_online_buffers['right'].sample_batch(self.branched_batch_size)
+            follow_batch_imitation = self.imitation_online_buffers['follow'].sample_batch(self.branched_batch_size)
+            straight_batch_imitation = self.imitation_online_buffers['straight'].sample_batch(self.branched_batch_size)
+
+            left_batch_rl = self.rl_online_buffers['left'].sample_batch(self.branched_batch_size)
+            right_batch_rl = self.rl_online_buffers['right'].sample_batch(self.branched_batch_size)
+            follow_batch_rl = self.rl_online_buffers['follow'].sample_batch(self.branched_batch_size)
+            straight_batch_rl = self.rl_online_buffers['straight'].sample_batch(self.branched_batch_size)
+
+
+            #states, actions, rewards, dones, new_states, idxs = batch
+            
+            training_states_batch = np.zeros(shape = (self.batch_size, 88, 200, 3))
+            training_next_states_batch = np.zeros(shape = (self.batch_size, 88, 200, 3))
+            actions = np.zeros(shape = (self.batch_size))
+            speed = np.zeros(shape = (self.batch_size))
+            next_speed = np.zeros(shape = (self.batch_size))
+            reward = np.zeros(shape = (self.batch_size))
+            
+            # Get indecies of all batch data
+            idxs_left_imitation = left_batch_imitation[-1]
+            idxs_right_imitation = right_batch_imitation[-1]
+            idxs_follow_imitation = follow_batch_imitation[-1]
+            idxs_straight_imitation = straight_batch_imitation[-1]
+
+            idxs_left_rl = left_batch_rl[-1]
+            idxs_right_rl = right_batch_rl[-1]
+            idxs_follow_rl = follow_batch_rl[-1]
+            idxs_straight_rl = straight_batch_rl[-1]
+
+            idxs = [np.concatenate((idxs_left_imitation,idxs_left_rl),axis=0),
+            np.concatenate((idxs_right_imitation,idxs_right_rl),axis=0), 
+            np.concatenate((idxs_follow_imitation,idxs_follow_rl),axis=0),
+            np.concatenate((idxs_straight_imitation,idxs_straight_rl),axis=0)]
+
+
+            batch = [left_batch_imitation, right_batch_imitation, follow_batch_imitation, straight_batch_imitation]
+            #preparing supervised data
+            for i in range(4):#looping on commands [left right follow straight]
+                for j in range(int(self.branched_batch_size*supervised_rl_data_ratio)): # looping on examples per command 
+                    training_states_batch[i*self.branched_batch_size:i*self.branched_batch_size+j] = batch[i][0][:,0][j].squeeze(axis=0)
+                    training_next_states_batch[i*self.branched_batch_size:i*self.branched_batch_size+j] = batch[i][4][:,0][j].squeeze(axis=0)
+                    #training_next_states_batch[i*self.branched_batch_size:i*self.branched_batch_size+j] = batch[i][0][:,0][j].squeeze(axis=0)
+                    actions[self.branched_batch_size*i+j] = batch[i][1][j]
+                    speed[self.branched_batch_size*i+j] = batch[i][0][:,1][j]
+                    next_speed[self.branched_batch_size*i+j] = batch[i][4][:,1][j]
+                    reward[self.branched_batch_size*i+j] = batch[i][2][j]
+
+
+            #preparing rl data
+            batch = [left_batch_rl, right_batch_rl, follow_batch_rl, straight_batch_rl]
+            for i in range(4):#looping on commands [left right follow straight]
+                for j in range(int(self.branched_batch_size*supervised_rl_data_ratio),self.branched_batch_size): # looping on examples per command 
+                    #print(batch[0][0].shape)
+                    training_states_batch[i*self.branched_batch_size:i*self.branched_batch_size+j] = batch[i][0][:,0][j].squeeze(axis=0)
+                    training_next_states_batch[i*self.branched_batch_size:i*self.branched_batch_size+j] = batch[i][4][:,0][j].squeeze(axis=0)
+                    #training_next_states_batch[i*self.branched_batch_size:i*self.branched_batch_size+j] = batch[i][0][:,0][j].squeeze(axis=0)
+                    actions[self.branched_batch_size*i+j] = batch[i][1][j]
+                    speed[self.branched_batch_size*i+j] = batch[i][0][:,1][j]
+                    next_speed[self.branched_batch_size*i+j] = batch[i][4][:,1][j]
+                    reward[self.branched_batch_size*i+j] = batch[i][2][j]
+
+
+            self.q_s_a = self.model.predict([training_states_batch,speed])
+            self.q_next_s_a_online = self.model.predict([training_next_states_batch,speed])
+            self.q_next_s_a_target = self.target_model.predict([training_next_states_batch,next_speed])          
+
+            rl_loss = self.rl_loss(reward, self.q_next_s_a_online, self.q_next_s_a_target, self.q_s_a, actions)
+            self.supervised_loss_, supervised_errors = self.supervised_loss(self.q_s_a, actions)
+            modified_loss = rl_loss 
+            
+            #self.updated_buffers(idxs,supervised_errors)
+            hist = self.model.fit(x = [training_states_batch,speed], y = [modified_loss[0],modified_loss[1],modified_loss[2],modified_loss[3],modified_loss[4]])
+            loss.append(hist.history["loss"])
+
+            if (iteration % 100 == 0):
+                print(" Training iteration ", iteration)
+                self.update_target_model()
+
+        #print(loss)    
+        #plt.plot(loss[100:])
+        # plt.plot(loss)
+        # plt.show()
+        # plt.plot(self.acc)
+        # plt.show()
+
+
+
 
 
     def update_online_buffers(self,idxs,supervised_errors):
@@ -505,7 +637,17 @@ class DDQN():
             Updating priorites inside the offline buffer
             call buffer.get() on all buffer entires, save errors and then update all values, then reload
         """
+        #
+        #self.imitation_online_buffers['left'].offline_idxs -> 
+        #self.imitation_online_buffers['left'].buffer.tree -> [self.capacity -1 : ] , for example, [3:] if capacity is 4 then tree size is 7 "0,1,2" for sum, rest for actual priorities
+        
+        self.imitation_online_buffers['left'].change_priorities(self.imitation_online_buffers['left'].offline_idxs ,self.imitation_online_buffers['left'].buffer.tree[self.imitation_online_buffers['left'].buffer.capacity:])
+        self.imitation_online_buffers['right'].change_priorities(self.imitation_online_buffers['right'].offline_idxs ,self.imitation_online_buffers['right'].buffer.tree[self.imitation_online_buffers['right'].buffer.capacity:])
+        self.imitation_online_buffers['follow'].change_priorities(self.imitation_online_buffers['follow'].offline_idxs ,self.imitation_online_buffers['follow'].buffer.tree[self.imitation_online_buffers['follow'].buffer.capacity:])
+        self.imitation_online_buffers['straight'].change_priorities(self.imitation_online_buffers['straight'].offline_idxs ,self.imitation_online_buffers['straight'].buffer.tree[self.imitation_online_buffers['straight'].buffer.capacity:])
         pass
+
+
 
     def masked_loss_function(self, y_true, y_pred):
         mask_value = 0

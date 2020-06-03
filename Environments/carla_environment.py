@@ -103,9 +103,9 @@ class CarlaEnvironment(EnvironmentInterface):
 
     def __init__ (self, experiment_path = None , frame_skip = 1, server_height = 512,
         server_width = 720, camera_height = 88, camera_width = 200, experiment_suite = None,
-        quality = "low", cameras = [CameraTypes.SEGMENTATION] , weather_id = [1],  episode_max_time = 100000,
+        quality = "low", cameras = [CameraTypes.FRONT] , weather_id = [1],  episode_max_time = 100000,
         max_speed = 35.0, port = 2000, map_name = "Town01", verbose=True,
-        seed = None, is_rendered = True, num_speedup_steps = 30 ,separate_actions_for_throttle_and_brake = False, rendred_image_type = 'segmentation'):
+        seed = None, is_rendered = True, num_speedup_steps = 30 ,separate_actions_for_throttle_and_brake = False, rendred_image_type = 'forward_camera'):
 
         self.frame_skip = frame_skip  # the frame skip affects the fps of the server directly. fps = 30 / frameskip
         self.server_height = server_height
@@ -367,7 +367,11 @@ class CarlaEnvironment(EnvironmentInterface):
                       - np.abs(self.control.steer) * 10
 
         # update measurements
-        self.measurements = [measurements.player_measurements.forward_speed] + self.location
+        #self.measurements = [measurements.player_measurements.forward_speed] + self.location 
+        #TODO, Add control signals to measurements
+        control_signals = [np.clip(action[0], -1, 1) ,np.clip(action[1], 0, 1),np.clip(action[2], 0, 1)] #steer, throttle, brake
+        self.measurements = [measurements.player_measurements.forward_speed] + self.location + control_signals 
+
         self.autopilot = measurements.player_measurements.autopilot_control
 
         # The directions to reach the goal (0 Follow lane, 1 Left, 2 Right, 3 Straight)
