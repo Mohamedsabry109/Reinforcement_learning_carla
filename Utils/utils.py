@@ -1,18 +1,7 @@
 import numpy as np
 import h5py
-
-
 import time
 
-
-
-def save_stats():
-    """
-        This function takes some states and saves them in some directory
-        I/P:
-        
-    """
-    pass
 
 def get_comb(steer_range, throttle_range):
     """
@@ -57,12 +46,13 @@ def heatup(env,agent,exp_policy,ACTION_NUMBER_TO_VALUES,num_episodes = 1):
 
     """
     episode_time = 30 #seconds
+    hlc_to_network_output = {0:2,1:0,2:1,3:3}
+
     for i in range(num_episodes):
         print("Heatup Iteration ",i)
         episode_data = {'states':[],'actions':[],'reward':[],'done':[]}
         env.reset()
         high_level_command = env.state['high_level_command']
-
         now = time.time()
         later = time.time()
         difference = int(later - now)
@@ -72,7 +62,7 @@ def heatup(env,agent,exp_policy,ACTION_NUMBER_TO_VALUES,num_episodes = 1):
             actions = agent.model.predict([ np.expand_dims(env.state['forward_camera'],axis = 0),np.array([env.state['measurements'][0]])])
             #action = np.argmax(actions[high_level_command])
             #TODO Choose the right action according to our network
-            action = exp_policy.choose_action(actions[high_level_command])
+            action = exp_policy.choose_action(actions[hlc_to_network_output[high_level_command]])
             #we need to map action to acc and steer
             steer, acc_brake = ACTION_NUMBER_TO_VALUES[action]
             if acc_brake >= 0 :
@@ -84,7 +74,6 @@ def heatup(env,agent,exp_policy,ACTION_NUMBER_TO_VALUES,num_episodes = 1):
                 acc = 0
 
             #steer, throttle, brake
-            #env.step([0,1,0])
             env.step([steer,acc,brake])
 
             #TODO do some additional frame skipping
@@ -112,11 +101,9 @@ def save_interaction_data(data, agent):
 
         Returns: None
     """
-
-
+    command_dict = {0:'follow',1:'left',2:'right',3:'straight'}
     for i in range(len(data['done'])):#loop on all steps' data
         #saving data
-        command_dict = {0:'follow',1:'left',2:'right',3:'straight'}
         current_high_level_command = data['states'][i]['high_level_command']
         files_tracker = agent.rl_offline_buffers[command_dict[current_high_level_command]].files_tracker
         state = np.expand_dims(data['states'][i]['forward_camera'],axis=0)
@@ -124,7 +111,6 @@ def save_interaction_data(data, agent):
         # velocity = np.array(data['states'][i]['measurements'][0])
         reward = np.array(data['reward'][i])
         done = np.array(data['done'][i])
-        
         targets = [0]*30
         targets[0] = measurements[4] #steering
         targets[1] = measurements[5] #throttle
@@ -146,7 +132,6 @@ def save_interaction_data(data, agent):
                 hdf.create_dataset('rgb', data=state)
                 hdf.create_dataset('targets', data=targets)
 
-            pass
         #left data
         elif current_high_level_command == 1:
             action = np.argmax(data['actions'][i][0])
@@ -158,7 +143,6 @@ def save_interaction_data(data, agent):
                 hdf.create_dataset('rgb', data=state)
                 hdf.create_dataset('targets', data=targets)
 
-            pass
         #right data
         elif current_high_level_command == 2:
             action = np.argmax(data['actions'][i][1])
@@ -170,7 +154,6 @@ def save_interaction_data(data, agent):
                 hdf.create_dataset('rgb', data=state)
                 hdf.create_dataset('targets', data=targets)
 
-            pass
         # straight data
         elif current_high_level_command == 4:
             action = np.argmax(data['actions'][i][3])

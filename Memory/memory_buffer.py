@@ -15,6 +15,7 @@ class MemoryBuffer(object):
         """
         self.directory = directory
         self.name = name
+        self.buffer_size = buffer_size
 
         if(with_per):
             # Prioritized Experience Replay
@@ -49,6 +50,7 @@ class MemoryBuffer(object):
     def priority(self, error):
         """ Compute an experience priority, as per Schaul et al.
         """
+
         return (error + self.epsilon) ** self.alpha 
 
     def size(self):
@@ -110,9 +112,7 @@ class OnlineMemoryBuffer(MemoryBuffer):
     def __init__(self,  buffer_size, name, train_data_directory, validation_data_directory, with_per = False):
         super().__init__(buffer_size, with_per, name, train_data_directory)
         print("Checking the data for initiallizing an Online buffer of the ", self.name, " branch")
-        
-        pass
-    
+            
     def reload(self,offline_buffer):
 
         """
@@ -128,6 +128,7 @@ class OnlineMemoryBuffer(MemoryBuffer):
 
         """
         #loading online buffer from offline buffer by sampling (online_buffer.buffer_size) samples 
+        self.buffer = SumTree(self.buffer_size)
         names, idxs = offline_buffer.sample_batch(self.buffer_size)
         self.offline_idxs = idxs
         state , action , reward, done = data_handler.handler.fetch_single_image(directory = self.directory, branch_name = self.name, observation_name = names[0])
@@ -174,8 +175,6 @@ class OfflineMemoryBuffer(MemoryBuffer):
         assert os.path.isdir(self.directory)
         #sorting files topologically, files' format is -> data_num.h5 
         files_list = sorted(os.listdir(self.directory + '/' + self.name + '/'), key = lambda x: int(x.split("_")[1].split(".")[0]))
-        #print("length of files ",len(files_list))
-        #print(files_list)
         self.files_counter = 0
         if files_list != []:     
             for file_name in files_list:
@@ -194,22 +193,19 @@ class OfflineMemoryBuffer(MemoryBuffer):
             idxs: array of int 
             errors: array of int
         """
-        print("Indecies ",idxs)
+        #print("Indecies ",idxs)
         for i,idx in enumerate(idxs):
             self.update(idx, errors[i])
 
     def memorize(self,name= None, error=None):
         """
         Memorize data in the buffer.
-
         Args:
             name: str 
             error: int
         """
-
         data = (error, name)
         if(self.with_per):
-            #priority = self.priority(error[0])
             priority = self.priority(error)
             self.buffer.add(priority, data)
             self.count += 1

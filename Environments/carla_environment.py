@@ -31,7 +31,7 @@ import numpy as np
 from enum import Enum
 from typing import List, Union
 import pygame
-
+import time
 # enum of the available levels and their path
 class CarlaLevel(Enum):
     TOWN1 = {"map_name": "Town01", "map_path": "/Game/Maps/Town01"}
@@ -103,7 +103,7 @@ class CarlaEnvironment(EnvironmentInterface):
 
     def __init__ (self, experiment_path = None , frame_skip = 1, server_height = 512,
         server_width = 720, camera_height = 88, camera_width = 200, experiment_suite = None,
-        quality = "low", cameras = [CameraTypes.FRONT] , weather_id = [1],  episode_max_time = 100000,
+        quality = "low", cameras = [CameraTypes.FRONT] , weather_id = [1],  episode_max_time = 30000,
         max_speed = 35.0, port = 2000, map_name = "Town01", verbose=True,
         seed = None, is_rendered = True, num_speedup_steps = 30 ,separate_actions_for_throttle_and_brake = False, rendred_image_type = 'forward_camera'):
 
@@ -424,6 +424,8 @@ class CarlaEnvironment(EnvironmentInterface):
 
 
         self.take_action(action)
+
+
 
     def take_action(self, action):
         self.control = VehicleControl()

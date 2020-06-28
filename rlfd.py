@@ -20,6 +20,7 @@ from ExplorationPolicy.epsilon_greedy import EpsilonGreedy
 from Utils.utils import *
 from Utils.config import *
 #declare some paths
+
 data_directory = '/home/mohamed/Desktop/Codes/rlfd_data/imitation_data'
 interaction_data_directory = '/home/mohamed/Desktop/Codes/rlfd_data/rl_data'
 imitation_data_directory = '/home/mohamed/Desktop/Codes/rlfd_data/imitation_data'
@@ -27,38 +28,62 @@ validation_data_directory = '/home/mohamed/Desktop/Codes/rlfd_data/imitation_dat
 
 
 agent = dqn.DDQN(imitation_data_directory=imitation_data_directory,rl_data_directory = interaction_data_directory)
-exp_policy = EpsilonGreedy(epsilon = 0.5, linear_schedule = [0.5,0.05,10])
-#actions = agent.model.predict()
-
+exp_policy = EpsilonGreedy(epsilon = 0.1, linear_schedule = [0.1,0.001,1000000]) # 1M -> exploration ends after 10K steps
+#TODO Exploration for each high level command for effective exploration 
 ########### supervised training #############
-agent.train_agent_supervised(iterations = 100)
+agent.train_agent_supervised(iterations = 3000)
 
 ########### Open the environment #############
 env = carla_environment.CarlaEnvironment()
 
-
 ###########  Heatup for RL #############
-print("Starting heatup")
+print("Starting Heatup")
 heatup(env,agent,exp_policy,ACTION_NUMBER_TO_VALUES)
 
 ########### supervised + rl training #############
+
 print("supervised + rl training ")
-number_initial_non_used_frames = 50
-for i in range(2):
-    number_initial_non_used_frames = 50
+number_initial_non_used_frames = 50 #number of frames the car is falling from the sky 
+hlc_to_network_output = {0:2,1:0,2:1,3:3} # dictionary maps hlc from carla to the proper output branch 
+freq_update_target_network = 2 # freq of updating the target network
+freq_update_offline_buffers = 2 # freq for updating the offline buffers
+interaction_steps = 20
+for i in range(1,interaction_steps):
     episode_data = {'states':[],'actions':[],'reward':[],'done':[]}
     while env.done == False:
-        env.step([0,1,0])
-        episode_data['states'].append(env.state)
+        actions = agent.model.predict([ np.expand_dims(env.state['forward_camera'],axis = 0),np.array([env.state['measurements'][0]])])
+        high_level_command = env.state['high_level_command']
+        action = exp_policy.choose_action(actions[hlc_to_network_output[high_level_command]])
+        #we need to map action to acc and steer
+        steer, acc_brake = ACTION_NUMBER_TO_VALUES[action]
+        if acc_brake >= 0 :
+            acc = acc_brake
+            brake  = 0
+        else:
+            brake = abs(acc_brake)
+            acc = 0
+        #steer, throttle, brake
+        env.step([steer,acc,brake])
+        
         if number_initial_non_used_frames > 0:
-            pass 
             number_initial_non_used_frames -= 1
         else:
-            actions = agent.model.predict([ np.expand_dims(env.state['forward_camera'],axis = 0),np.array([env.state['measurements'][0]])])
+            #actions = agent.model.predict([ np.expand_dims(env.state['forward_camera'],axis = 0),np.array([env.state['measurements'][0]])])
+            episode_data['states'].append(env.state)
             episode_data['actions'].append(actions)
             episode_data['reward'].append(env.reward)
             episode_data['done'].append(env.done)
             agent.train_agent_rl_supervised(iterations = 1)
+
+    #update offline buffers and reload
+    if (i % freq_update_offline_buffers == 0):
+        agent.update_offline_buffer()
+        agent.update_rl_offline_buffer()
+        agent.reload_imitation_online_buffers()
+        agent.reload_rl_online_buffers()
+
+    if (i % freq_update_target_network == 0):
+        agent.update_target_model()
 
     save_interaction_data(episode_data,agent)
     env.reset(True)

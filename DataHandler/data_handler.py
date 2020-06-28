@@ -53,7 +53,6 @@ class handler(object):
         #print("All Images Must Have The Same Length of: {}".format(self.image_dimension))
         #print("WARNING: All Files Have {} images".format(images_per_H5_file))
 
-
     def fetch_minibatch(self,branch_name,number_of_files):
         """
         Fetching a Mini-batch from one of the branches.
@@ -64,7 +63,7 @@ class handler(object):
         Returns:
             states, next_states, actions, next_actions, velocity, next_veloctiym reward
         """
-            
+        print("\n fetching mini batch from ",branch_name)    
         size_minibatches_per_epoch = self.batch_size
         target_size = (size_minibatches_per_epoch,) +  self.image_dimension[1:]
         images = np.zeros(target_size)
@@ -88,9 +87,6 @@ class handler(object):
                     imgs = np.array(imgs[:,:,:], dtype = np.uint8)
                     targets = hdf.get('targets')
                     targets = np.array(targets)
-                    # if i == 0:
-                    #     print(imgs.shape)
-                    #     print(targets.shape)
 
             images[i] = imgs[0][0]
             next_images[i] = imgs[0][1]
@@ -108,9 +104,6 @@ class handler(object):
             action[i] = self.map_outputs(throttle = throttle, steer = steer , brake = brake , one_output_for_throttle_brake = True)
             next_action[i] = self.map_outputs(throttle = next_throttle, steer = next_steer , brake = next_brake , one_output_for_throttle_brake = True)
         
-        #print(images.shape)
-        #print(action)
-
         return images , next_images , action , next_action ,velocity , next_velocity
 
 
@@ -118,6 +111,7 @@ class handler(object):
         _,ret = cv2.imencode('.jpg',img)
         i = IPython.display.Image(data=ret)
         IPython.display.display(i)
+
 
     @staticmethod
     def fetch_single_image(directory, branch_name, observation_name):
@@ -138,14 +132,12 @@ class handler(object):
                 throttle = targets[:,1][0]
                 brake = targets[:,2][0]
                 velocity = targets[:,10][0]
-                #TODO,  reward and done must be saved in supervised data
-                #reward = 0
                 reward = targets[:,28][0]
                 done = targets[:,29][0]
                 #print(self.map_outputs(throttle = throttle, steer = steer , brake = brake , one_output_for_throttle_brake = True))
                 # self.imshow(imgs[0])
                 action_number = handler.map_outputs(throttle = throttle, steer = steer , brake = brake , one_output_for_throttle_brake = True)
-        
+
         return [imgs , velocity] , action_number , reward , done
 
 
@@ -172,16 +164,12 @@ class handler(object):
                 #print(self.map_outputs(throttle = throttle, steer = steer , brake = brake , one_output_for_throttle_brake = True))
                 # self.imshow(imgs[0])
                 action_number = handler.map_outputs(throttle = throttle, steer = steer , brake = brake , one_output_for_throttle_brake = True)
-        
+
+
         return [imgs , velocity] , action_number , reward
 
 
-    def fetch_validation():
-        '''
-        '''
-        pass
 
-    
     @staticmethod
     def closest(lst, K): 
         return lst[min(range(len(lst)), key = lambda i: abs(lst[i]-K))] 
@@ -208,10 +196,6 @@ class handler(object):
         '''
         # return action_number
         diff = throttle - brake
-        # steer_action = np.float(np.round(steer,1))
-        # #print("quantized steer ",steer_action)
-        # throttle_brake_action = np.float(np.round(diff,1))
-
         steer_action = round(handler.closest(config.STEER_VALUES,steer),1)
         throttle_brake_action = round(handler.closest(config.STEER_VALUES,diff),1)
 
@@ -235,18 +219,6 @@ class handler(object):
         # else:
         #     throttle_brake_action = 0.0
 
-        #print("quantized throttle_brake ",throttle_brake_action)
-        # action_num = config.ACTION_DICT[str(10*steer_action) + '_' + str(10*throttle_brake_action)]
         action_num = config.ACTION_DICT[str(10*steer_action) + '_' + str(10*throttle_brake_action)]
 
         return action_num
-
-
-
-# data_directory = '/home/mohamed/Desktop/Codes/rlfd_data/imitation_data'
-# train_data_directory = '/home/mohamed/Desktop/Codes/rlfd_data/imitation_data'
-# validation_data_directory = '/home/mohamed/Desktop/Codes/rlfd_data/imitation_data'
-# handler = handler(train_data_directory = train_data_directory, validation_data_directory = validation_data_directory )
-
-# print(handler.map_outputs(throttle =0.23 , brake = 1 , steer = 0.91))
-# #handler.fetch_single_image(1)
